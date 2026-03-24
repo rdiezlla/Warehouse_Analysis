@@ -12,6 +12,22 @@ SERVICE_TARGETS = {
     "ds_recogidas_ege_dia": "n_recogidas_EGE_dia",
 }
 
+SERVICE_DATASET_TO_TIPO = {
+    "ds_entregas_sge_dia": "SGE",
+    "ds_entregas_sgp_dia": "SGP",
+    "ds_recogidas_ege_dia": "EGE",
+    "ds_entregas_sge_semana": "SGE",
+    "ds_entregas_sgp_semana": "SGP",
+    "ds_recogidas_ege_semana": "EGE",
+}
+
+
+def resolve_service_type(dataset_name: str) -> str:
+    service_type = SERVICE_DATASET_TO_TIPO.get(dataset_name)
+    if service_type is None:
+        raise ValueError(f"Unexpected service dataset_name without explicit tipo_servicio mapping: {dataset_name}")
+    return service_type
+
 
 def _assemble_dataset(base: pd.DataFrame, calendar: pd.DataFrame, target_col: str, dataset_name: str, lags: list[int], rolling: list[int], frequency: str) -> pd.DataFrame:
     df = calendar.merge(base[["fecha", target_col]], on="fecha", how="left").fillna({target_col: 0}).sort_values("fecha")
@@ -20,7 +36,7 @@ def _assemble_dataset(base: pd.DataFrame, calendar: pd.DataFrame, target_col: st
     df["target"] = df[target_col].astype(float)
     df = df.drop(columns=[target_col])
     df["dataset_name"] = dataset_name
-    df["tipo_servicio"] = dataset_name.split("_")[1].upper()
+    df["tipo_servicio"] = resolve_service_type(dataset_name)
     df["flag_periodo"] = add_period_flag(df["fecha"])
     df["ramp_up_2026"] = (pd.to_datetime(df["fecha"]) - pd.Timestamp("2026-01-01")).dt.days.clip(lower=0)
     if pd.notna(first_actual_date) and pd.notna(last_actual_date):

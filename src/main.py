@@ -19,10 +19,11 @@ from src.logging_config import setup_logging
 from src.modeling.backtesting import backtest_dataset
 from src.modeling.datasets import build_and_save_datasets
 from src.modeling.evaluation import rank_models, summarize_oof_predictions
+from src.modeling.feature_policy import load_feature_policy
 from src.modeling.forecasters import ForecasterConfig, RecursiveForecaster
 from src.modeling.hierarchical_reconciliation import reconcile_weekly_from_daily
 from src.modeling.model_registry import save_registry
-from src.modeling.nowcasting import apply_nowcasting, fit_cartera_scalers
+from src.modeling.nowcasting import apply_nowcasting, build_cartera_maturity_curves, fit_cartera_scalers
 from src.modeling.train_picking_models import train_picking_models
 from src.modeling.train_service_models import train_service_models
 from src.modeling.transformer_service_to_picking import apply_transformer, compare_direct_vs_transformer_last_fold, fit_transformer
@@ -34,6 +35,8 @@ from src.reporting.qa_reports import save_join_reports, write_qa_report
 from src.utils.io_utils import ensure_dirs, load_yaml, save_dataframe, save_parquet_safe
 
 LOGGER = logging.getLogger(__name__)
+
+BASELINE_MODELS = {"seasonal_naive", "moving_average", "median_dow"}
 
 
 def load_config() -> tuple[dict, dict, dict]:
@@ -71,6 +74,7 @@ def run_qa(settings: dict, aliases: dict, regex_rules: dict) -> dict:
     fact_servicio_dia = build_fact_servicio_dia(albaranes, dim_date)
     fact_picking_dia, fact_other_movs = build_fact_picking_dia(joins["movimientos_maestro"], settings["thresholds"]["heavy_item_kg"], settings["thresholds"]["bulky_item_m3"])
     fact_cartera, cartera_fecha_objetivo, cartera_horizonte = build_fact_cartera(joins["solicitudes_maestro"])
+    cartera_maturity_curves = build_cartera_maturity_curves(fact_cartera, max_horizon=settings["nowcasting"]["medium_horizon_max"])
 
     save_dataframe(fact_servicio_dia, PROCESSED_DIR / "fact_servicio_dia", index=False)
     save_dataframe(fact_picking_dia, PROCESSED_DIR / "fact_picking_dia", index=False)
@@ -78,6 +82,7 @@ def run_qa(settings: dict, aliases: dict, regex_rules: dict) -> dict:
     save_dataframe(fact_cartera, PROCESSED_DIR / "fact_cartera", index=False)
     save_dataframe(cartera_fecha_objetivo, PROCESSED_DIR / "cartera_por_fecha_objetivo", index=False)
     save_dataframe(cartera_horizonte, PROCESSED_DIR / "cartera_por_horizonte", index=False)
+    save_dataframe(cartera_maturity_curves, PROCESSED_DIR / "cartera_maturity_curves", index=False)
     save_dataframe(build_weekly_fact(fact_servicio_dia), PROCESSED_DIR / "fact_servicio_semana", index=False)
     save_dataframe(build_weekly_fact(fact_picking_dia), PROCESSED_DIR / "fact_picking_semana", index=False)
 
@@ -107,6 +112,7 @@ def run_qa(settings: dict, aliases: dict, regex_rules: dict) -> dict:
         "fact_servicio_dia": fact_servicio_dia,
         "fact_picking_dia": fact_picking_dia,
         "fact_cartera": fact_cartera,
+        "cartera_maturity_curves": cartera_maturity_curves,
         "joins": joins,
     }
 
@@ -126,6 +132,7 @@ def ensure_processed_context(settings: dict, aliases: dict, regex_rules: dict) -
         "fact_servicio_dia": _read_processed_table("fact_servicio_dia"),
         "fact_picking_dia": _read_processed_table("fact_picking_dia"),
         "fact_cartera": _read_processed_table("fact_cartera"),
+        "cartera_maturity_curves": _read_processed_table("cartera_maturity_curves"),
         "dim_date": _read_processed_table("dim_date"),
         "albaranes": pd.read_parquet(INTERIM_DIR / "albaranes_clean.parquet"),
         "joins": {"movimientos_albaranes": pd.read_parquet(PROCESSED_DIR / "movimientos_albaranes.parquet")},
@@ -135,6 +142,14 @@ def ensure_processed_context(settings: dict, aliases: dict, regex_rules: dict) -
 def run_features(settings: dict, aliases: dict, regex_rules: dict) -> dict:
     context = ensure_processed_context(settings, aliases, regex_rules)
     datasets = build_and_save_datasets(context["fact_servicio_dia"], context["fact_picking_dia"], context["dim_date"], settings, FEATURES_DIR)
+    dataset_service_type_qa = pd.DataFrame(
+        [
+            {"dataset_name": name, "tipo_servicio": df["tipo_servicio"].iloc[0]}
+            for name, df in datasets.items()
+            if "tipo_servicio" in df.columns
+        ]
+    )
+    dataset_service_type_qa.to_csv(QA_DIR / "dataset_tipo_servicio_qa.csv", index=False)
     return datasets
 
 
@@ -178,27 +193,25 @@ def run_backtest(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
     combined_predictions = pd.concat(all_oof, ignore_index=True) if all_oof else pd.DataFrame(columns=["dataset_name", "fold_id", "model_name", "fecha", "y_true", "y_pred", "abs_error", "is_peak"])
     combined_metrics = pd.concat(all_metrics, ignore_index=True) if all_metrics else pd.DataFrame()
     combined_predictions.to_csv(BACKTESTS_DIR / "backtest_predictions_all.csv", index=False)
-    combined_predictions.to_csv(BACKTESTS_DIR / "out-of-fold_predictions.csv", index=False)
+    combined_predictions[["dataset_name", "fold_id", "model_name", "fecha", "y_true", "y_pred", "abs_error", "is_peak"]].to_csv(
+        BACKTESTS_DIR / "out-of-fold_predictions.csv",
+        index=False,
+    )
     combined_metrics.to_csv(BACKTESTS_DIR / "backtest_metrics_all.csv", index=False)
     model_summary = summarize_oof_predictions(combined_predictions)
-    model_ranking = rank_models(model_summary)
+    principal_summary = summarize_oof_predictions(combined_predictions, evaluation_view="ranking_operativo_principal")
+    stress_summary = summarize_oof_predictions(combined_predictions, evaluation_view="stress_test_2025_2026")
+    model_ranking = rank_models(principal_summary)
+    stress_ranking = rank_models(stress_summary)
     model_summary.to_csv(BACKTESTS_DIR / "backtest_model_summary_real_scale.csv", index=False)
+    principal_summary.to_csv(BACKTESTS_DIR / "backtest_model_summary_operativo_principal.csv", index=False)
+    stress_summary.to_csv(BACKTESTS_DIR / "backtest_model_summary_stress_test.csv", index=False)
     model_ranking.to_csv(BACKTESTS_DIR / "backtest_model_ranking.csv", index=False)
-    audit_lines = [
-        "# Backtesting Audit",
-        "",
-        "- Metrics computed from out-of-fold predictions in original target scale.",
-        "- No target transform is active in the current forecasters.",
-        "- `backtest_metrics_all.csv`, `out-of-fold_predictions.csv` and backtest plots are all derived from the same OOF prediction tables.",
-        "- Leakage review passed for recursive lags/rolling and cartera snapshots constrained by `fecha_creacion <= origin`.",
-        "",
-        "## Artifacts",
-        f"- OOF: {BACKTESTS_DIR / 'out-of-fold_predictions.csv'}",
-        f"- Fold metrics: {BACKTESTS_DIR / 'backtest_metrics_all.csv'}",
-        f"- Model summary: {BACKTESTS_DIR / 'backtest_model_summary_real_scale.csv'}",
-        f"- Ranking: {BACKTESTS_DIR / 'backtest_model_ranking.csv'}",
-    ]
-    (REPORTS_DIR / "backtesting_audit.md").write_text("\n".join(audit_lines), encoding="utf-8")
+    model_ranking.to_csv(BACKTESTS_DIR / "ranking_operativo_principal.csv", index=False)
+    stress_ranking.to_csv(BACKTESTS_DIR / "ranking_stress_test.csv", index=False)
+    _write_feature_training_policy()
+    _write_backtesting_audit(model_summary, principal_summary, stress_summary)
+    _write_model_selection_recommendation(model_ranking, stress_ranking)
 
     transformer_cmp, transformer_metrics = compare_direct_vs_transformer_last_fold(
         {name: df for name, df in datasets.items() if name.startswith("ds_entregas") or name.startswith("ds_recogidas")},
@@ -215,13 +228,111 @@ def run_backtest(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
     return combined_predictions, combined_metrics
 
 
+def _write_feature_training_policy() -> None:
+    policy = load_feature_policy()
+    lines = [
+        "# Feature Training Policy",
+        "",
+        "## Columnas permitidas",
+        *[f"- `{item}`" for item in policy.get("allow_exact", [])],
+        "",
+        "## Prefijos permitidos",
+        *[f"- `{item}*`" for item in policy.get("allow_prefixes", [])],
+        "",
+        "## Columnas prohibidas",
+        *[f"- `{item}`: columna de control, auditoría o target/resultado." for item in policy.get("block_exact", [])],
+        "",
+        "## Prefijos prohibidos",
+        *[f"- `{item}*`: columnas de control, flags o trazabilidad no válidas para X." for item in policy.get("block_prefixes", [])],
+        "",
+        "## Reglas",
+        "- `is_actual` solo se usa como filtro y auditoría, nunca como predictor.",
+        "- `tipo_servicio` queda para joins y nowcasting, no entra en X del modelo tabular por KPI.",
+        "- Cualquier columna fuera de allowlist dispara error en entrenamiento o predicción.",
+    ]
+    (REPORTS_DIR / "feature_training_policy.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+def _write_backtesting_audit(model_summary: pd.DataFrame, principal_summary: pd.DataFrame, stress_summary: pd.DataFrame) -> None:
+    lines = [
+        "# Backtesting Audit",
+        "",
+        "## Bugs corregidos",
+        "- `is_actual` bloqueado como feature; solo sirve para filtrar historia observada real.",
+        "- `tipo_servicio` en datasets de servicios ahora usa mapping determinista SGE/SGP/EGE.",
+        "- `fact_servicio_dia` ya no expande calendario completo; la expansión ocurre solo en datasets.",
+        "- Métricas, OOF, ranking y plots salen de la misma base `out-of-fold_predictions.csv`.",
+        "- WAPE y WAPE peak devuelven `NaN` en ventanas muertas sin señal, y no puntúan como éxito perfecto.",
+        "- 2025/2026 salen del ranking operativo principal y pasan a vista separada de stress test.",
+        "- Nowcasting en backtest calibra scaler por fold con historia disponible y usa `tipo_servicio` correcto.",
+        "",
+        "## Política 2025",
+        "- Ranking operativo principal: solo OOF con fechas <= 2024-12-31.",
+        "- Stress test: OOF con fechas >= 2025-01-01, incluyendo 2025 y 2026.",
+        "",
+        "## Política WAPE ventanas muertas",
+        "- Si `sum(abs(y_true)) == 0`, `WAPE = NaN`.",
+        "- Si el subconjunto peak no tiene denominador válido, `wape_peak = NaN`.",
+        "- Los rankings usan medias de pandas, por lo que estas ventanas no sesgan el promedio.",
+        "",
+        "## Columnas prohibidas",
+        "- Ver `feature_training_policy.md`.",
+        "",
+        "## Artefactos",
+        f"- OOF: {BACKTESTS_DIR / 'out-of-fold_predictions.csv'}",
+        f"- Fold metrics: {BACKTESTS_DIR / 'backtest_metrics_all.csv'}",
+        f"- Summary all: {BACKTESTS_DIR / 'backtest_model_summary_real_scale.csv'}",
+        f"- Ranking principal: {BACKTESTS_DIR / 'ranking_operativo_principal.csv'}",
+        f"- Ranking stress: {BACKTESTS_DIR / 'ranking_stress_test.csv'}",
+        "",
+        "## Tamaños",
+        f"- Model summary all rows: {len(model_summary)}",
+        f"- Ranking principal rows: {len(principal_summary)}",
+        f"- Stress summary rows: {len(stress_summary)}",
+    ]
+    (REPORTS_DIR / "backtesting_audit.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+def _write_model_selection_recommendation(principal_ranking: pd.DataFrame, stress_ranking: pd.DataFrame) -> None:
+    lines = ["# Model Selection Recommendation", ""]
+    for dataset_name, group in principal_ranking.groupby("dataset_name"):
+        ordered = group.sort_values("rank")
+        best = ordered.iloc[0]
+        second = ordered.iloc[1] if len(ordered) > 1 else ordered.iloc[0]
+        stress_best = stress_ranking[stress_ranking["dataset_name"] == dataset_name].sort_values("rank")
+        stress_note = ""
+        if not stress_best.empty and stress_best.iloc[0]["model_name"] != best["model_name"]:
+            stress_note = f" Cambio en stress test: gana `{stress_best.iloc[0]['model_name']}`."
+        lines.extend(
+            [
+                f"## {dataset_name}",
+                f"- Modelo recomendado: `{best['model_name']}`",
+                f"- Segundo mejor: `{second['model_name']}`",
+                "- Métrica principal usada: `mean_wape` sobre ranking operativo principal",
+                f"- Trade-off robustez/precisión: `mean_mae={best['mean_mae']:.3f}`, `p90_abs_error={best['p90_abs_error']:.3f}`.{stress_note}",
+                f"- Tipo recomendado: {'baseline' if best['model_name'] in BASELINE_MODELS else 'modelo complejo'}",
+                f"- Sobreajuste/inestabilidad: {'sí, revisar stress test' if stress_note else 'sin señal fuerte de inestabilidad frente al stress test'}",
+                "",
+            ]
+        )
+    (REPORTS_DIR / "model_selection_recommendation.md").write_text("\n".join(lines), encoding="utf-8")
+
+
 def _best_model_name(metrics: pd.DataFrame, dataset_name: str) -> str:
+    ranking_path = BACKTESTS_DIR / "ranking_operativo_principal.csv"
+    if ranking_path.exists():
+        ranking = pd.read_csv(ranking_path)
+        subset = ranking[ranking["dataset_name"] == dataset_name].sort_values("rank")
+        if not subset.empty:
+            return str(subset.iloc[0]["model_name"])
     if metrics.empty:
         return "boosting_full"
-    subset = metrics[(metrics["dataset_name"] == dataset_name) & (~metrics["model_name"].str.contains("nowcast", na=False))]
+    subset = metrics[(metrics["dataset_name"] == dataset_name) & (~metrics["model_name"].str.contains("nowcast", na=False))].copy()
+    if "evaluation_view" in subset.columns:
+        subset = subset[subset["evaluation_view"] == "ranking_operativo_principal"].copy()
     if subset.empty:
         return "boosting_full"
-    ranking = subset.groupby("model_name", as_index=False)["wape"].mean().sort_values("wape")
+    ranking = subset.groupby("model_name", as_index=False)["wape"].mean().sort_values("wape", na_position="last")
     return str(ranking.iloc[0]["model_name"])
 
 
@@ -237,7 +348,7 @@ def _fit_best_forecaster(df: pd.DataFrame, settings: dict, frequency: str, model
     lags = settings["features"]["daily_lags"] if frequency == "daily" else settings["features"]["weekly_lags"]
     rolling = settings["features"]["daily_rolling_windows"] if frequency == "daily" else settings["features"]["weekly_rolling_windows"]
     forecaster = RecursiveForecaster(ForecasterConfig(family=family, frequency=frequency, lags=lags, rolling_windows=rolling, random_state=settings["project"]["random_state"], drop_features=drop_features))
-    forecaster.fit(df[df["flag_periodo"] != "apagado_2025"].copy())
+    forecaster.fit(df[(df["flag_periodo"] != "apagado_2025") & (df.get("is_actual", 1) == 1)].copy())
     return forecaster
 
 
@@ -260,7 +371,8 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
         future = df[pd.to_datetime(df["fecha"]) > latest_actual].head(horizon).copy()
         if future.empty:
             continue
-        history = df.loc[pd.to_datetime(df["fecha"]) <= latest_actual].set_index(pd.to_datetime(df.loc[pd.to_datetime(df["fecha"]) <= latest_actual, "fecha"]))["target"].astype(float)
+        history_df = df.loc[(pd.to_datetime(df["fecha"]) <= latest_actual) & (df.get("is_actual", 1) == 1)].copy()
+        history = history_df.set_index(pd.to_datetime(history_df["fecha"]))["target"].astype(float)
         model_name = _best_model_name(metrics, name)
         forecaster = _fit_best_forecaster(df, settings, frequency, model_name)
         forecast = forecaster.predict(history, future)
@@ -273,10 +385,10 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
                 forecast = forecast.rename(columns={"prediction": "forecast"})
                 forecast["tipo_servicio"] = tipo_servicio
                 scalers = fit_cartera_scalers(context["fact_servicio_dia"], context["fact_cartera"])
-                forecast = apply_nowcasting(forecast, context["fact_cartera"], scalers, latest_actual, settings)
+                forecast = apply_nowcasting(forecast, context["fact_cartera"], scalers, latest_actual, settings, maturity_curves=context["cartera_maturity_curves"])
                 forecast["kpi"] = name.replace("ds_", "").replace("_dia", "")
                 service_daily_forecasts.append(forecast[["fecha", "tipo_servicio", "forecast", "kpi", "model_name"]])
-                plot_history_and_forecast(df[["fecha", "target"]].tail(120), forecast[["fecha", "forecast"]], name, PLOTS_DIR / f"forecast_{name}.png")
+                plot_history_and_forecast(history_df[["fecha", "target"]].tail(120), forecast[["fecha", "forecast"]], name, PLOTS_DIR / f"forecast_{name}.png")
             else:
                 weekly_forecasts.append(forecast.rename(columns={"prediction": "forecast"}).assign(kpi=name.replace("ds_", "").replace("_semana", ""), source="weekly_direct"))
         elif name.startswith("ds_picking"):
@@ -284,7 +396,7 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
                 direct = forecast.rename(columns={"prediction": "forecast"})
                 direct["kpi"] = name.replace("ds_", "").replace("_dia", "")
                 direct_picking_forecasts.append(direct[["fecha", "forecast", "kpi", "model_name"]])
-                plot_history_and_forecast(df[["fecha", "target"]].tail(120), direct[["fecha", "forecast"]], name, PLOTS_DIR / f"forecast_{name}.png")
+                plot_history_and_forecast(history_df[["fecha", "target"]].tail(120), direct[["fecha", "forecast"]], name, PLOTS_DIR / f"forecast_{name}.png")
             else:
                 weekly_forecasts.append(forecast.rename(columns={"prediction": "forecast"}).assign(kpi=name.replace("ds_", "").replace("_semana", ""), source="weekly_direct"))
 

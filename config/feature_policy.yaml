@@ -1,0 +1,39 @@
+allow_exact:
+  - day_of_week
+  - week_of_month
+  - month
+  - iso_week
+  - is_month_end
+  - is_any_holiday
+  - is_pre_holiday
+  - is_post_holiday
+  - is_bridge_day
+  - easter_week_relative
+  - is_post_easter_window_1_6
+  - ramp_up_2026
+allow_prefixes:
+  - lag_
+  - rolling_mean_
+  - rolling_median_
+  - same_dow_rolling_mean_
+  - maturity_ratio_h
+block_exact:
+  - fecha
+  - target
+  - is_actual
+  - dataset_name
+  - flag_periodo
+  - tipo_servicio
+  - fold_id
+  - model_name
+  - y_true
+  - y_pred
+  - abs_error
+  - is_peak
+block_prefixes:
+  - flag_
+  - qa_
+  - audit_
+  - target_
+  - actual_
+  - observed_

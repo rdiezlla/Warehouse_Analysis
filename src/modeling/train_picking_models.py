@@ -15,7 +15,7 @@ def train_picking_models(datasets: dict, settings: dict, output_dir: Path) -> di
         frequency = "daily" if name.endswith("_dia") else "weekly"
         lags = settings["features"]["daily_lags"] if frequency == "daily" else settings["features"]["weekly_lags"]
         rolling = settings["features"]["daily_rolling_windows"] if frequency == "daily" else settings["features"]["weekly_rolling_windows"]
-        train_df = df[df["flag_periodo"] != "apagado_2025"].copy()
+        train_df = df[(df["flag_periodo"] != "apagado_2025") & (df.get("is_actual", 1) == 1)].copy()
         for family in ["linear", "boosting"]:
             forecaster = RecursiveForecaster(ForecasterConfig(family=family, frequency=frequency, lags=lags, rolling_windows=rolling, random_state=random_state))
             forecaster.fit(train_df)

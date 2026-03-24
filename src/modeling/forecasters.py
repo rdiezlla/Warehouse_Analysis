@@ -7,6 +7,7 @@ import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import Ridge
 
+from src.modeling.feature_policy import select_training_features, validate_feature_columns
 
 @dataclass
 class ForecasterConfig:
@@ -33,13 +34,9 @@ class RecursiveForecaster:
             raise ValueError(f"Unsupported model family: {self.config.family}")
 
     def fit(self, train_df: pd.DataFrame) -> "RecursiveForecaster":
-        usable = train_df.dropna().copy()
+        usable = train_df[train_df.get("is_actual", 1) == 1].dropna().copy()
         excluded = {"fecha", "target", "dataset_name", "flag_periodo", *self.config.drop_features}
-        self.feature_columns = [
-            column
-            for column in usable.columns
-            if column not in excluded and pd.api.types.is_numeric_dtype(usable[column])
-        ]
+        self.feature_columns = select_training_features(usable.drop(columns=list(excluded & set(usable.columns)), errors="ignore"))
         x = usable[self.feature_columns].apply(pd.to_numeric, errors="coerce").replace([np.inf, -np.inf], np.nan).fillna(0.0)
         y = pd.to_numeric(usable["target"], errors="coerce").replace([np.inf, -np.inf], np.nan).fillna(0.0)
         self.estimator.fit(x, y)
@@ -73,6 +70,7 @@ class RecursiveForecaster:
                 .replace([np.inf, -np.inf], np.nan)
                 .fillna(0.0)
             )
+            validate_feature_columns(x.columns)
             prediction = float(self.estimator.predict(x)[0])
             prediction = min(max(prediction, 0.0), 1e9)
             history.loc[current_date] = prediction

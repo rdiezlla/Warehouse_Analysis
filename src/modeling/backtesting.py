@@ -5,7 +5,7 @@ import pandas as pd
 from src.modeling.baselines import median_by_day_of_week, moving_average, seasonal_naive
 from src.modeling.evaluation import build_oof_frame, compute_metrics_by_fold
 from src.modeling.forecasters import ForecasterConfig, RecursiveForecaster
-from src.modeling.nowcasting import apply_nowcasting
+from src.modeling.nowcasting import apply_nowcasting, build_cartera_maturity_curves
 
 
 def _generate_fold_boundaries(df: pd.DataFrame, initial_end: str, horizon: int, step: int, frequency: str) -> list[tuple[pd.Timestamp, pd.Timestamp, pd.Timestamp]]:
@@ -61,6 +61,12 @@ def backtest_dataset(df: pd.DataFrame, settings: dict, frequency: str, include_f
         scaler = merged["ratio"].replace([pd.NA, pd.NaT], pd.NA).dropna()
         return float(scaler.median()) if not scaler.empty else 1.0
 
+    def _fit_fold_maturity_curves(origin_date: pd.Timestamp) -> pd.DataFrame:
+        if fact_cartera is None:
+            return pd.DataFrame(columns=["tipo_servicio", "horizonte_dias", "visible_ratio_pedidos"])
+        historical = fact_cartera[fact_cartera["fecha_inicio_evento"] <= origin_date].copy()
+        return build_cartera_maturity_curves(historical, max_horizon=settings["nowcasting"]["medium_horizon_max"])
+
     for fold_id, (origin, test_start, test_end) in enumerate(boundaries, start=1):
         train = df[(pd.to_datetime(df["fecha"]) <= origin) & (df["flag_periodo"] != "apagado_2025") & (df.get("is_actual", 1) == 1)].copy()
         test = df[(pd.to_datetime(df["fecha"]) >= test_start) & (pd.to_datetime(df["fecha"]) <= test_end) & (df.get("is_actual", 1) == 1)].copy()
@@ -90,7 +96,8 @@ def backtest_dataset(df: pd.DataFrame, settings: dict, frequency: str, include_f
                 nowcast_input["tipo_servicio"] = df["tipo_servicio"].iloc[0]
                 fold_scaler = _fit_fold_cartera_scaler(train, origin, df["tipo_servicio"].iloc[0])
                 scalers = pd.DataFrame({"tipo_servicio": [df["tipo_servicio"].iloc[0]], "scaler": [fold_scaler]})
-                adjusted = apply_nowcasting(nowcast_input, fact_cartera, scalers, origin, settings)
+                maturity_curves = _fit_fold_maturity_curves(origin)
+                adjusted = apply_nowcasting(nowcast_input, fact_cartera, scalers, origin, settings, maturity_curves=maturity_curves)
                 predictions.append(build_oof_frame(df["dataset_name"].iloc[0], fold_id, f"{model_name}__nowcast", adjusted["fecha"], test["target"].values, adjusted["forecast"].values))
 
     if predictions:
