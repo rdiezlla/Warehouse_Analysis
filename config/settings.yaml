@@ -1,0 +1,47 @@
+project:
+  name: warehouse_operational_forecasting
+  random_state: 42
+files:
+  albaranes: Informacion_albaranaes.xlsx
+  movimientos: movimientos.xlsx
+  solicitudes: lineas_solicitudes_con_pedidos.xlsx
+  maestro: maestro_dimensiones_limpio.xlsx
+calendar:
+  start_date: 2021-01-01
+  end_date: 2026-12-31
+  external_csv: data/external/madrid_holidays_2021_2026.csv
+training:
+  exclude_years: [2025]
+  daily_horizon: 28
+  daily_step_days: 7
+  weekly_horizon: 8
+  weekly_step_weeks: 1
+  initial_train_end_daily: 2023-12-31
+  initial_train_end_weekly: 2023-12-31
+features:
+  daily_lags: [7, 14, 28]
+  daily_rolling_windows: [7, 14, 28]
+  weekly_lags: [1, 2, 4, 8]
+  weekly_rolling_windows: [4, 8, 12]
+  transformer_offsets: [0, 1, 2, 3]
+nowcasting:
+  short_horizon_max: 7
+  medium_horizon_max: 28
+  statistical_weight_short: 0.35
+  cartera_weight_short: 0.65
+  statistical_weight_medium: 0.7
+  cartera_weight_medium: 0.3
+qa:
+  max_unknown_service_pct: 0.05
+  min_join_coverage_warn: 0.5
+  min_pi_rows_warn: 100
+  max_date_parse_fail_pct: 0.02
+  max_null_key_pct: 0.1
+thresholds:
+  heavy_item_kg: 15.0
+  bulky_item_m3: 0.125
+forecast:
+  output_start_from_latest_actual: true
+  weekly_anchor: MON
+logging:
+  level: INFO

@@ -1,0 +1,16 @@
+service_classifier:
+  recogida_patterns:
+    - PORTE RECOGIDA
+    - RECOGIDA
+    - DEVOLUCION
+    - RECEPCION
+    - RETORNO
+  entrega_patterns:
+    - PORTE ENTREGA
+    - PORTE ENVIO
+    - EXPEDICION
+    - ENTREGA
+urgency_mapping:
+  NO: ["NO", "N", "NORMAL"]
+  SI: ["SI", "S", "SÍ"]
+  MUY_URGENTE: ["MUY URGENTE", "MUY_URGENTE", "MUYURGENTE"]
