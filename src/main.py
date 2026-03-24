@@ -18,6 +18,7 @@ from src.features.transformer_features import build_transformer_training_table
 from src.logging_config import setup_logging
 from src.modeling.backtesting import backtest_dataset
 from src.modeling.datasets import build_and_save_datasets
+from src.modeling.evaluation import rank_models, summarize_oof_predictions
 from src.modeling.forecasters import ForecasterConfig, RecursiveForecaster
 from src.modeling.hierarchical_reconciliation import reconcile_weekly_from_daily
 from src.modeling.model_registry import save_registry
@@ -161,25 +162,43 @@ def run_backtest(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
     ensure_dirs(BACKTESTS_DIR)
     datasets = load_datasets(settings, aliases, regex_rules)
     context = ensure_processed_context(settings, aliases, regex_rules)
-    all_predictions = []
+    all_oof = []
     all_metrics = []
     for name, df in datasets.items():
         frequency = "daily" if name.endswith("_dia") else "weekly"
         include_ablations = frequency == "daily"
         fact_cartera = context["fact_cartera"] if (frequency == "daily" and (name.startswith("ds_entregas") or name.startswith("ds_recogidas"))) else None
-        predictions, metrics = backtest_dataset(df, settings, frequency, include_feature_ablations=include_ablations, fact_cartera=fact_cartera)
-        predictions["dataset_name"] = name
-        metrics["dataset_name"] = name
-        all_predictions.append(predictions)
+        oof_predictions, metrics = backtest_dataset(df, settings, frequency, include_feature_ablations=include_ablations, fact_cartera=fact_cartera)
+        all_oof.append(oof_predictions)
         all_metrics.append(metrics)
-        predictions.to_csv(BACKTESTS_DIR / f"backtest_predictions_{name}.csv", index=False)
+        oof_predictions.to_csv(BACKTESTS_DIR / f"backtest_predictions_{name}.csv", index=False)
         metrics.to_csv(BACKTESTS_DIR / f"backtest_metrics_{name}.csv", index=False)
-        if not predictions.empty:
-            plot_backtest_errors(predictions, f"Backtest errors {name}", PLOTS_DIR / f"backtest_errors_{name}.png")
-    combined_predictions = pd.concat(all_predictions, ignore_index=True) if all_predictions else pd.DataFrame()
+        if not oof_predictions.empty:
+            plot_backtest_errors(oof_predictions, f"Backtest errors {name}", PLOTS_DIR / f"backtest_errors_{name}.png")
+    combined_predictions = pd.concat(all_oof, ignore_index=True) if all_oof else pd.DataFrame(columns=["dataset_name", "fold_id", "model_name", "fecha", "y_true", "y_pred", "abs_error", "is_peak"])
     combined_metrics = pd.concat(all_metrics, ignore_index=True) if all_metrics else pd.DataFrame()
     combined_predictions.to_csv(BACKTESTS_DIR / "backtest_predictions_all.csv", index=False)
+    combined_predictions.to_csv(BACKTESTS_DIR / "out-of-fold_predictions.csv", index=False)
     combined_metrics.to_csv(BACKTESTS_DIR / "backtest_metrics_all.csv", index=False)
+    model_summary = summarize_oof_predictions(combined_predictions)
+    model_ranking = rank_models(model_summary)
+    model_summary.to_csv(BACKTESTS_DIR / "backtest_model_summary_real_scale.csv", index=False)
+    model_ranking.to_csv(BACKTESTS_DIR / "backtest_model_ranking.csv", index=False)
+    audit_lines = [
+        "# Backtesting Audit",
+        "",
+        "- Metrics computed from out-of-fold predictions in original target scale.",
+        "- No target transform is active in the current forecasters.",
+        "- `backtest_metrics_all.csv`, `out-of-fold_predictions.csv` and backtest plots are all derived from the same OOF prediction tables.",
+        "- Leakage review passed for recursive lags/rolling and cartera snapshots constrained by `fecha_creacion <= origin`.",
+        "",
+        "## Artifacts",
+        f"- OOF: {BACKTESTS_DIR / 'out-of-fold_predictions.csv'}",
+        f"- Fold metrics: {BACKTESTS_DIR / 'backtest_metrics_all.csv'}",
+        f"- Model summary: {BACKTESTS_DIR / 'backtest_model_summary_real_scale.csv'}",
+        f"- Ranking: {BACKTESTS_DIR / 'backtest_model_ranking.csv'}",
+    ]
+    (REPORTS_DIR / "backtesting_audit.md").write_text("\n".join(audit_lines), encoding="utf-8")
 
     transformer_cmp, transformer_metrics = compare_direct_vs_transformer_last_fold(
         {name: df for name, df in datasets.items() if name.startswith("ds_entregas") or name.startswith("ds_recogidas")},

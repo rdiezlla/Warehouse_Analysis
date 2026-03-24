@@ -14,8 +14,8 @@ PICKING_TARGETS = {
 
 def _assemble_dataset(base: pd.DataFrame, calendar: pd.DataFrame, target_col: str, dataset_name: str, lags: list[int], rolling: list[int], frequency: str) -> pd.DataFrame:
     df = calendar.merge(base[["fecha", target_col]], on="fecha", how="left").fillna({target_col: 0}).sort_values("fecha")
-    first_actual_date = pd.to_datetime(base.loc[base[target_col].fillna(0) > 0, "fecha"]).min()
-    last_actual_date = pd.to_datetime(base.loc[base[target_col].fillna(0) > 0, "fecha"]).max()
+    first_actual_date = pd.to_datetime(base["fecha"]).min()
+    last_actual_date = pd.to_datetime(base["fecha"]).max()
     df["target"] = df[target_col].astype(float)
     df = df.drop(columns=[target_col])
     df["dataset_name"] = dataset_name

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from src.modeling.baselines import median_by_day_of_week, moving_average, seasonal_naive
-from src.modeling.evaluation import compute_metrics
+from src.modeling.evaluation import build_oof_frame, compute_metrics_by_fold
 from src.modeling.forecasters import ForecasterConfig, RecursiveForecaster
 from src.modeling.nowcasting import apply_nowcasting
 
@@ -33,7 +33,6 @@ def backtest_dataset(df: pd.DataFrame, settings: dict, frequency: str, include_f
     seasonal_lag = 7 if frequency == "daily" else 52
     boundaries = _generate_fold_boundaries(df, initial_end, horizon, step, frequency)
     predictions = []
-    metrics_rows = []
     model_specs = [("linear_full", "linear", ()), ("boosting_full", "boosting", ())]
     ablation_boundaries = set(boundaries[-12:]) if include_feature_ablations and len(boundaries) > 12 else set(boundaries)
     if include_feature_ablations:
@@ -42,6 +41,25 @@ def backtest_dataset(df: pd.DataFrame, settings: dict, frequency: str, include_f
             ("boosting_no_post_easter", "boosting", ("is_post_easter_window_1_6",)),
             ("boosting_no_ramp_up", "boosting", ("ramp_up_2026",)),
         ])
+
+    def _fit_fold_cartera_scaler(train_frame: pd.DataFrame, origin_date: pd.Timestamp, service_type: str) -> float:
+        if fact_cartera is None:
+            return 1.0
+        cartera_hist = fact_cartera[
+            (fact_cartera["tipo_servicio"] == service_type)
+            & (fact_cartera["fecha_creacion"] <= origin_date)
+            & (fact_cartera["fecha_inicio_evento"] <= origin_date)
+        ].copy()
+        if cartera_hist.empty:
+            return 1.0
+        cartera_counts = cartera_hist.groupby("fecha_inicio_evento")["codigo_generico"].nunique().reset_index(name="pedidos_abiertos")
+        actual = train_frame[["fecha", "target"]].copy()
+        actual["fecha"] = pd.to_datetime(actual["fecha"])
+        merged = actual.merge(cartera_counts, left_on="fecha", right_on="fecha_inicio_evento", how="left")
+        merged["pedidos_abiertos"] = merged["pedidos_abiertos"].replace(0, pd.NA)
+        merged["ratio"] = merged["target"] / merged["pedidos_abiertos"]
+        scaler = merged["ratio"].replace([pd.NA, pd.NaT], pd.NA).dropna()
+        return float(scaler.median()) if not scaler.empty else 1.0
 
     for fold_id, (origin, test_start, test_end) in enumerate(boundaries, start=1):
         train = df[(pd.to_datetime(df["fecha"]) <= origin) & (df["flag_periodo"] != "apagado_2025") & (df.get("is_actual", 1) == 1)].copy()
@@ -57,12 +75,7 @@ def backtest_dataset(df: pd.DataFrame, settings: dict, frequency: str, include_f
             "median_dow": median_by_day_of_week(history, future_dates) if frequency == "daily" else moving_average(history, future_dates, 4),
         }
         for model_name, pred_series in baseline_predictions.items():
-            fold_pred = pd.DataFrame({"fecha": future_dates, "prediction": pred_series.values})
-            fold_pred["model_name"] = model_name
-            fold_pred["fold_id"] = fold_id
-            fold_pred["actual"] = test["target"].values
-            predictions.append(fold_pred)
-            metrics_rows.append({"dataset_name": df["dataset_name"].iloc[0], "fold_id": fold_id, "model_name": model_name, **compute_metrics(test["target"], fold_pred["prediction"])})
+            predictions.append(build_oof_frame(df["dataset_name"].iloc[0], fold_id, model_name, future_dates, test["target"].values, pred_series.values))
 
         for model_name, family, drop_features in model_specs:
             if drop_features and (origin, test_start, test_end) not in ablation_boundaries:
@@ -70,23 +83,18 @@ def backtest_dataset(df: pd.DataFrame, settings: dict, frequency: str, include_f
             forecaster = RecursiveForecaster(ForecasterConfig(family=family, frequency=frequency, lags=lags, rolling_windows=rolling, random_state=settings["project"]["random_state"], drop_features=drop_features))
             forecaster.fit(train)
             fold_pred = forecaster.predict(history, test)
-            fold_pred["model_name"] = model_name
-            fold_pred["fold_id"] = fold_id
-            fold_pred["actual"] = test["target"].values
-            predictions.append(fold_pred)
-            metrics_rows.append({"dataset_name": df["dataset_name"].iloc[0], "fold_id": fold_id, "model_name": model_name, **compute_metrics(test["target"], fold_pred["prediction"])})
+            predictions.append(build_oof_frame(df["dataset_name"].iloc[0], fold_id, model_name, fold_pred["fecha"], test["target"].values, fold_pred["prediction"].values))
 
             if fact_cartera is not None and frequency == "daily" and model_name == "boosting_full" and df["tipo_servicio"].iloc[0] in ["SGE", "SGP", "EGE"]:
                 nowcast_input = fold_pred.rename(columns={"prediction": "forecast"}).copy()
                 nowcast_input["tipo_servicio"] = df["tipo_servicio"].iloc[0]
-                scalers = pd.DataFrame({"tipo_servicio": [df["tipo_servicio"].iloc[0]], "scaler": [1.0]})
+                fold_scaler = _fit_fold_cartera_scaler(train, origin, df["tipo_servicio"].iloc[0])
+                scalers = pd.DataFrame({"tipo_servicio": [df["tipo_servicio"].iloc[0]], "scaler": [fold_scaler]})
                 adjusted = apply_nowcasting(nowcast_input, fact_cartera, scalers, origin, settings)
-                adjusted["model_name"] = f"{model_name}__nowcast"
-                adjusted["fold_id"] = fold_id
-                adjusted["actual"] = test["target"].values
-                predictions.append(adjusted.rename(columns={"forecast": "prediction"})[["fecha", "prediction", "model_name", "fold_id", "actual"]])
-                metrics_rows.append({"dataset_name": df["dataset_name"].iloc[0], "fold_id": fold_id, "model_name": f"{model_name}__nowcast", **compute_metrics(test["target"], adjusted["forecast"])})
+                predictions.append(build_oof_frame(df["dataset_name"].iloc[0], fold_id, f"{model_name}__nowcast", adjusted["fecha"], test["target"].values, adjusted["forecast"].values))
 
     if predictions:
-        return pd.concat(predictions, ignore_index=True), pd.DataFrame(metrics_rows)
-    return pd.DataFrame(columns=["fecha", "prediction", "model_name", "fold_id", "actual"]), pd.DataFrame(metrics_rows)
+        oof_df = pd.concat(predictions, ignore_index=True)
+        return oof_df, compute_metrics_by_fold(oof_df)
+    empty_oof = pd.DataFrame(columns=["dataset_name", "fold_id", "model_name", "fecha", "y_true", "y_pred", "abs_error", "is_peak"])
+    return empty_oof, compute_metrics_by_fold(empty_oof)

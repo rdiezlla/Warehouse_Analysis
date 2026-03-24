@@ -169,7 +169,7 @@ def compare_direct_vs_transformer_last_fold(
             (predictions["dataset_name"] == dataset_name)
             & (predictions["fold_id"] == predictions.loc[predictions["dataset_name"] == dataset_name, "fold_id"].max())
             & (predictions["model_name"] == best_direct_model)
-        ][["fecha", "prediction"]].rename(columns={"prediction": "forecast"})
+        ][["fecha", "y_pred"]].rename(columns={"y_pred": "forecast"})
         direct_pred["fecha"] = pd.to_datetime(direct_pred["fecha"])
         test["fecha"] = pd.to_datetime(test["fecha"])
         transformed_df["fecha"] = pd.to_datetime(transformed_df["fecha"])

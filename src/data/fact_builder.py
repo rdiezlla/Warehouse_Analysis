@@ -38,10 +38,7 @@ def build_fact_servicio_dia(albaranes: pd.DataFrame, dim_date: pd.DataFrame) -> 
     out["p50_kg_facturable_dia"] = grouped["kg_facturable"].median()
     out["p90_kg_facturable_dia"] = grouped["kg_facturable"].quantile(0.90)
     out["p95_kg_facturable_dia"] = grouped["kg_facturable"].quantile(0.95)
-    out = out.reset_index()
-    out = dim_date[["date"]].merge(out, left_on="date", right_on="fecha", how="left").drop(columns=["fecha"])
-    out = out.rename(columns={"date": "fecha"}).fillna(0)
-    return out
+    return out.reset_index()
 
 
 def build_fact_picking_dia(movimientos_maestro: pd.DataFrame, heavy_item_kg: float, bulky_item_m3: float) -> tuple[pd.DataFrame, pd.DataFrame]:
