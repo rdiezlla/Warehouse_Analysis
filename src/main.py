@@ -23,7 +23,7 @@ from src.modeling.baselines import median_by_day_of_week, moving_average, season
 from src.modeling.datasets import build_and_save_datasets
 from src.modeling.evaluation import rank_models, summarize_oof_predictions
 from src.modeling.feature_policy import load_feature_policy
-from src.modeling.forecast_tracking import append_forecast_history, build_actuals_daily, build_actuals_weekly, build_forecast_vs_actual, prepare_forecast_output_for_history
+from src.modeling.forecast_tracking import append_forecast_history, build_actuals_daily, build_actuals_weekly, build_forecast_vs_actual, build_weekly_history_from_daily, prepare_forecast_output_for_history
 from src.modeling.forecasters import ForecasterConfig, RecursiveForecaster
 from src.modeling.hierarchical_reconciliation import reconcile_weekly_from_daily
 from src.modeling.model_registry import save_registry
@@ -476,6 +476,68 @@ def _write_service_layer_audit(
     (REPORTS_DIR / "service_layer_audit.md").write_text("\n".join(lines), encoding="utf-8")
 
 
+def _migrate_weekly_history_if_needed(official_path: Path, diagnostic_path: Path) -> bool:
+    if not official_path.exists():
+        return False
+    existing = pd.read_parquet(official_path)
+    if "forecast_source" not in existing.columns or not existing["forecast_source"].eq("weekly_direct").any():
+        return False
+    official_rows = existing[existing["forecast_source"] != "weekly_direct"].copy()
+    diagnostic_rows = existing[existing["forecast_source"] == "weekly_direct"].copy()
+    save_parquet_safe(official_rows, official_path, index=False)
+    if not diagnostic_rows.empty:
+        append_forecast_history(diagnostic_rows, diagnostic_path)
+    return True
+
+
+def _write_weekly_operational_policy(
+    weekly_official: pd.DataFrame,
+    weekly_diagnostic: pd.DataFrame,
+    official_history_path: Path,
+    diagnostic_history_path: Path,
+    official_vs_actual_path: Path,
+    diagnostic_vs_actual_path: Path,
+    migrated_existing_history: bool,
+) -> None:
+    official_sources = sorted(weekly_official["source"].dropna().unique().tolist()) if not weekly_official.empty and "source" in weekly_official.columns else []
+    diagnostic_sources = sorted(weekly_diagnostic["source"].dropna().unique().tolist()) if not weekly_diagnostic.empty and "source" in weekly_diagnostic.columns else []
+    lines = [
+        "# Weekly Operational Policy",
+        "",
+        "## Política oficial",
+        "- El forecast operativo maestro es el diario.",
+        "- El forecast semanal operativo oficial se deriva agregando el diario.",
+        "- El weekly directo queda relegado a diagnóstico y benchmark.",
+        "",
+        "## Archivos para operación",
+        f"- Diario oficial: `{FORECASTS_DIR / 'daily_forecasts.csv'}`",
+        f"- Semanal oficial: `{FORECASTS_DIR / 'weekly_forecasts.csv'}`",
+        "- Operación debe consumir solo el semanal oficial derivado del diario.",
+        "",
+        "## Archivos para análisis",
+        f"- Semanal diagnóstico: `{FORECASTS_DIR / 'weekly_forecasts_diagnostic.csv'}`",
+        f"- Histórico oficial semanal: `{official_history_path}`",
+        f"- Histórico diagnóstico semanal: `{diagnostic_history_path}`",
+        f"- Forecast vs actual oficial semanal: `{official_vs_actual_path}`",
+        f"- Forecast vs actual diagnóstico semanal: `{diagnostic_vs_actual_path}`",
+        "",
+        "## Decisión",
+        "- Se toma esta política porque el daily reciente es usable y el weekly_direct reciente no es suficientemente fiable para operación.",
+        "- Separar ambas capas evita que el equipo use por error un benchmark diagnóstico como plan semanal oficial.",
+        "",
+        "## Validación de salidas",
+        f"- `weekly_forecasts.csv` sources: {official_sources}",
+        f"- `weekly_forecasts_diagnostic.csv` sources: {diagnostic_sources}",
+        f"- Migración de histórico mixto previa aplicada: {'sí' if migrated_existing_history else 'no'}",
+        "",
+        "## Riesgos evitados",
+        "- Mezcla de fuentes heterogéneas en el mismo semanal.",
+        "- Interpretar `weekly_direct` como compromiso operativo cuando hoy no lo es.",
+        "- Contaminar `forecast_vs_actual_weekly.csv` con una mezcla de weekly oficial y diagnóstico.",
+    ]
+    (REPORTS_DIR / "weekly_operational_policy.md").write_text("\n".join(lines), encoding="utf-8")
+
+
 def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
     ensure_dirs(FORECASTS_DIR, PLOTS_DIR)
     context = ensure_processed_context(settings, aliases, regex_rules)
@@ -595,26 +657,44 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
     nowcasting_trace.to_csv(FORECASTS_DIR / "nowcasting_trace_daily.csv", index=False)
 
     weekly_from_daily = reconcile_weekly_from_daily(daily_output[["fecha", "kpi", "forecast"]]) if not daily_output.empty else pd.DataFrame(columns=["fecha", "kpi", "forecast"])
-    weekly_direct = pd.concat(weekly_forecasts, ignore_index=True) if weekly_forecasts else pd.DataFrame(columns=["fecha", "forecast", "kpi", "source"])
-    weekly_output = pd.concat([weekly_from_daily.assign(source="daily_aggregated"), weekly_direct], ignore_index=True, sort=False)
-    weekly_output["forecast_run_timestamp"] = run_timestamp.isoformat()
-    weekly_output["forecast_run_date"] = run_date
-    weekly_output["pipeline_run_id"] = pipeline_run_id
+    weekly_output = weekly_from_daily.assign(
+        source="daily_aggregated",
+        aggregation_source="daily_forecast",
+        forecast_run_timestamp=run_timestamp.isoformat(),
+        forecast_run_date=run_date,
+        pipeline_run_id=pipeline_run_id,
+    )
+    weekly_output = weekly_output[["fecha", "kpi", "forecast", "source", "aggregation_source", "forecast_run_timestamp", "forecast_run_date", "pipeline_run_id"]]
     weekly_output.to_csv(FORECASTS_DIR / "weekly_forecasts.csv", index=False)
 
+    weekly_direct = pd.concat(weekly_forecasts, ignore_index=True) if weekly_forecasts else pd.DataFrame(columns=["fecha", "forecast", "kpi", "source", "dataset_name", "model_name"])
+    if not weekly_direct.empty:
+        weekly_direct["forecast_run_timestamp"] = run_timestamp.isoformat()
+        weekly_direct["forecast_run_date"] = run_date
+        weekly_direct["pipeline_run_id"] = pipeline_run_id
+        weekly_direct["source"] = "weekly_direct"
+    weekly_direct = weekly_direct[["fecha", "kpi", "forecast", "source", "dataset_name", "model_name", "forecast_run_timestamp", "forecast_run_date", "pipeline_run_id"]] if not weekly_direct.empty else pd.DataFrame(columns=["fecha", "kpi", "forecast", "source", "dataset_name", "model_name", "forecast_run_timestamp", "forecast_run_date", "pipeline_run_id"])
+    weekly_direct.to_csv(FORECASTS_DIR / "weekly_forecasts_diagnostic.csv", index=False)
+
     daily_history_rows = prepare_forecast_output_for_history(daily_output, run_timestamp, pipeline_run_id, "daily", switch_date=switch_date)
-    weekly_history_rows = prepare_forecast_output_for_history(weekly_output, run_timestamp, pipeline_run_id, "weekly", switch_date=switch_date)
     daily_history_path = FORECASTS_DIR / "forecast_history_daily.parquet"
     weekly_history_path = FORECASTS_DIR / "forecast_history_weekly.parquet"
+    weekly_history_diagnostic_path = FORECASTS_DIR / "forecast_history_weekly_diagnostic.parquet"
+    migrated_existing_weekly_history = _migrate_weekly_history_if_needed(weekly_history_path, weekly_history_diagnostic_path)
     daily_history = append_forecast_history(daily_history_rows, daily_history_path)
+    weekly_history_rows = build_weekly_history_from_daily(daily_history_rows)
     weekly_history = append_forecast_history(weekly_history_rows, weekly_history_path)
+    weekly_history_diagnostic_rows = prepare_forecast_output_for_history(weekly_direct, run_timestamp, pipeline_run_id, "weekly", switch_date=switch_date)
+    weekly_history_diagnostic = append_forecast_history(weekly_history_diagnostic_rows, weekly_history_diagnostic_path)
 
     actuals_daily = build_actuals_daily(context["fact_servicio_dia"], context["fact_picking_dia"])
     actuals_weekly = build_actuals_weekly(actuals_daily)
     forecast_vs_actual_daily = build_forecast_vs_actual(daily_history, actuals_daily)
     forecast_vs_actual_weekly = build_forecast_vs_actual(weekly_history, actuals_weekly)
+    forecast_vs_actual_weekly_diagnostic = build_forecast_vs_actual(weekly_history_diagnostic, actuals_weekly)
     forecast_vs_actual_daily.to_csv(FORECASTS_DIR / "forecast_vs_actual_daily.csv", index=False)
     forecast_vs_actual_weekly.to_csv(FORECASTS_DIR / "forecast_vs_actual_weekly.csv", index=False)
+    forecast_vs_actual_weekly_diagnostic.to_csv(FORECASTS_DIR / "forecast_vs_actual_weekly_diagnostic.csv", index=False)
 
     cleaned_ad_hoc_outputs = _clean_informal_forecast_outputs()
     _write_service_layer_audit(
@@ -624,6 +704,15 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
         FORECASTS_DIR / "forecast_vs_actual_daily.csv",
         FORECASTS_DIR / "forecast_vs_actual_weekly.csv",
         cleaned_ad_hoc_outputs,
+    )
+    _write_weekly_operational_policy(
+        weekly_output,
+        weekly_direct,
+        weekly_history_path,
+        weekly_history_diagnostic_path,
+        FORECASTS_DIR / "forecast_vs_actual_weekly.csv",
+        FORECASTS_DIR / "forecast_vs_actual_weekly_diagnostic.csv",
+        migrated_existing_weekly_history,
     )
     return daily_output, weekly_output
 
