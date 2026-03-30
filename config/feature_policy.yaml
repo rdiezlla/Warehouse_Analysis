@@ -24,6 +24,9 @@ block_exact:
   - dataset_name
   - flag_periodo
   - tipo_servicio
+  - service_source
+  - service_truth_status
+  - is_final_service_truth
   - fold_id
   - model_name
   - y_true

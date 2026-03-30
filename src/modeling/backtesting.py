@@ -45,6 +45,11 @@ def backtest_dataset(df: pd.DataFrame, settings: dict, frequency: str, include_f
     def _fit_fold_cartera_scaler(train_frame: pd.DataFrame, origin_date: pd.Timestamp, service_type: str) -> float:
         if fact_cartera is None:
             return 1.0
+        scaler_train = train_frame.copy()
+        if "is_final_service_truth" in scaler_train.columns:
+            scaler_train = scaler_train[scaler_train["is_final_service_truth"] == 1].copy()
+        if scaler_train.empty:
+            scaler_train = train_frame.copy()
         cartera_hist = fact_cartera[
             (fact_cartera["tipo_servicio"] == service_type)
             & (fact_cartera["fecha_creacion"] <= origin_date)
@@ -53,7 +58,7 @@ def backtest_dataset(df: pd.DataFrame, settings: dict, frequency: str, include_f
         if cartera_hist.empty:
             return 1.0
         cartera_counts = cartera_hist.groupby("fecha_inicio_evento")["codigo_generico"].nunique().reset_index(name="pedidos_abiertos")
-        actual = train_frame[["fecha", "target"]].copy()
+        actual = scaler_train[["fecha", "target"]].copy()
         actual["fecha"] = pd.to_datetime(actual["fecha"])
         merged = actual.merge(cartera_counts, left_on="fecha", right_on="fecha_inicio_evento", how="left")
         merged["pedidos_abiertos"] = merged["pedidos_abiertos"].replace(0, pd.NA)

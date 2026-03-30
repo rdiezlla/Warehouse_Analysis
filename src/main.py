@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import logging
+import shutil
+import uuid
 from pathlib import Path
 
 import pandas as pd
@@ -20,6 +22,7 @@ from src.modeling.backtesting import backtest_dataset
 from src.modeling.datasets import build_and_save_datasets
 from src.modeling.evaluation import rank_models, summarize_oof_predictions
 from src.modeling.feature_policy import load_feature_policy
+from src.modeling.forecast_tracking import append_forecast_history, build_actuals_daily, build_actuals_weekly, build_forecast_vs_actual, prepare_forecast_output_for_history
 from src.modeling.forecasters import ForecasterConfig, RecursiveForecaster
 from src.modeling.hierarchical_reconciliation import reconcile_weekly_from_daily
 from src.modeling.model_registry import save_registry
@@ -71,7 +74,7 @@ def run_qa(settings: dict, aliases: dict, regex_rules: dict) -> dict:
     save_parquet_safe(joins["movimientos_albaranes"], PROCESSED_DIR / "movimientos_albaranes.parquet", index=False)
     save_parquet_safe(joins["solicitudes_maestro"], PROCESSED_DIR / "solicitudes_maestro.parquet", index=False)
 
-    fact_servicio_dia = build_fact_servicio_dia(albaranes, dim_date)
+    fact_servicio_dia, service_freshness_report, service_layer_meta = build_fact_servicio_dia(albaranes, joins["solicitudes_maestro"], settings)
     fact_picking_dia, fact_other_movs = build_fact_picking_dia(joins["movimientos_maestro"], settings["thresholds"]["heavy_item_kg"], settings["thresholds"]["bulky_item_m3"])
     fact_cartera, cartera_fecha_objetivo, cartera_horizonte = build_fact_cartera(joins["solicitudes_maestro"])
     cartera_maturity_curves = build_cartera_maturity_curves(fact_cartera, max_horizon=settings["nowcasting"]["medium_horizon_max"])
@@ -83,6 +86,7 @@ def run_qa(settings: dict, aliases: dict, regex_rules: dict) -> dict:
     save_dataframe(cartera_fecha_objetivo, PROCESSED_DIR / "cartera_por_fecha_objetivo", index=False)
     save_dataframe(cartera_horizonte, PROCESSED_DIR / "cartera_por_horizonte", index=False)
     save_dataframe(cartera_maturity_curves, PROCESSED_DIR / "cartera_maturity_curves", index=False)
+    service_freshness_report.to_csv(QA_DIR / "service_layer_freshness_report.csv", index=False)
     save_dataframe(build_weekly_fact(fact_servicio_dia), PROCESSED_DIR / "fact_servicio_semana", index=False)
     save_dataframe(build_weekly_fact(fact_picking_dia), PROCESSED_DIR / "fact_picking_semana", index=False)
 
@@ -101,6 +105,10 @@ def run_qa(settings: dict, aliases: dict, regex_rules: dict) -> dict:
         "solicitudes": qa_sol,
         "maestro": qa_mae,
         "joins": joins["coverage_global"].to_dict(orient="records"),
+        "service_layer": {
+            **{row["metric"]: row["value"] for row in service_freshness_report.to_dict(orient="records")},
+            "switch_date_effective": str(service_layer_meta["switch_date"].date()) if pd.notna(service_layer_meta["switch_date"]) else "",
+        },
     }
     write_qa_report(qa_payload, REPORTS_DIR / "qa_summary.md")
     return {
@@ -113,6 +121,7 @@ def run_qa(settings: dict, aliases: dict, regex_rules: dict) -> dict:
         "fact_picking_dia": fact_picking_dia,
         "fact_cartera": fact_cartera,
         "cartera_maturity_curves": cartera_maturity_curves,
+        "service_layer_meta": service_layer_meta,
         "joins": joins,
     }
 
@@ -128,14 +137,27 @@ def ensure_processed_context(settings: dict, aliases: dict, regex_rules: dict) -
     required = [PROCESSED_DIR / "fact_servicio_dia.parquet", PROCESSED_DIR / "fact_picking_dia.parquet", PROCESSED_DIR / "fact_cartera.parquet", PROCESSED_DIR / "dim_date.parquet"]
     if not all(path.exists() for path in required):
         return run_qa(settings, aliases, regex_rules)
+    fact_servicio_dia = _read_processed_table("fact_servicio_dia")
+    switch_candidates = pd.to_datetime(fact_servicio_dia.loc[fact_servicio_dia["service_source"] == "solicitudes", "fecha"]) if "service_source" in fact_servicio_dia.columns else pd.Series(dtype="datetime64[ns]")
+    configured_switch_date = settings.get("service_layer", {}).get("switch_date")
+    service_layer_meta = {
+        "switch_date": pd.Timestamp(configured_switch_date).normalize() if configured_switch_date else (switch_candidates.min().normalize() if not switch_candidates.empty else pd.NaT),
+        "last_albaranes_date": pd.to_datetime(fact_servicio_dia.loc[fact_servicio_dia["service_source"] == "albaranes", "fecha"]).max() if "service_source" in fact_servicio_dia.columns else pd.NaT,
+        "last_solicitudes_visible_date": pd.to_datetime(fact_servicio_dia.loc[fact_servicio_dia["service_source"] == "solicitudes", "fecha"]).max() if "service_source" in fact_servicio_dia.columns else pd.NaT,
+        "last_hybrid_date": pd.to_datetime(fact_servicio_dia["fecha"]).max(),
+        "days_from_albaranes": int(fact_servicio_dia["service_source"].eq("albaranes").sum()) if "service_source" in fact_servicio_dia.columns else 0,
+        "days_from_solicitudes": int(fact_servicio_dia["service_source"].eq("solicitudes").sum()) if "service_source" in fact_servicio_dia.columns else 0,
+        "overlap_days_ge_switch": [],
+    }
     return {
-        "fact_servicio_dia": _read_processed_table("fact_servicio_dia"),
+        "fact_servicio_dia": fact_servicio_dia,
         "fact_picking_dia": _read_processed_table("fact_picking_dia"),
         "fact_cartera": _read_processed_table("fact_cartera"),
         "cartera_maturity_curves": _read_processed_table("cartera_maturity_curves"),
         "dim_date": _read_processed_table("dim_date"),
         "albaranes": pd.read_parquet(INTERIM_DIR / "albaranes_clean.parquet"),
         "joins": {"movimientos_albaranes": pd.read_parquet(PROCESSED_DIR / "movimientos_albaranes.parquet")},
+        "service_layer_meta": service_layer_meta,
     }
 
 
@@ -149,6 +171,10 @@ def run_features(settings: dict, aliases: dict, regex_rules: dict) -> dict:
             if "tipo_servicio" in df.columns
         ]
     )
+    allowed_types = {"SGE", "SGP", "EGE", "PI"}
+    unexpected = dataset_service_type_qa.loc[~dataset_service_type_qa["tipo_servicio"].isin(allowed_types)]
+    if not unexpected.empty:
+        LOGGER.warning("Unexpected tipo_servicio values found in datasets: %s", unexpected.to_dict(orient="records"))
     dataset_service_type_qa.to_csv(QA_DIR / "dataset_tipo_servicio_qa.csv", index=False)
     return datasets
 
@@ -352,12 +378,99 @@ def _fit_best_forecaster(df: pd.DataFrame, settings: dict, frequency: str, model
     return forecaster
 
 
+def _current_run_timestamp(settings: dict) -> pd.Timestamp:
+    timezone = settings.get("forecast", {}).get("history_timezone", "Europe/Madrid")
+    return pd.Timestamp.now(tz=timezone)
+
+
+def _forecast_origin_date(df: pd.DataFrame, run_date: pd.Timestamp) -> pd.Timestamp:
+    observed = df[(df.get("is_actual", 1) == 1) & (pd.to_datetime(df["fecha"]) <= run_date)].copy()
+    if observed.empty:
+        raise ValueError(f"No observed history available on or before forecast run date {run_date.date()}")
+    return pd.to_datetime(observed["fecha"]).max().normalize()
+
+
+def _clean_informal_forecast_outputs() -> bool:
+    comparisons_dir = FORECASTS_DIR.parent / "comparisons"
+    if comparisons_dir.exists():
+        shutil.rmtree(comparisons_dir)
+        return True
+    return False
+
+
+def _write_service_layer_audit(
+    service_layer_meta: dict,
+    daily_history_path: Path,
+    weekly_history_path: Path,
+    daily_vs_actual_path: Path,
+    weekly_vs_actual_path: Path,
+    cleaned_ad_hoc_outputs: bool,
+) -> None:
+    switch_date = service_layer_meta.get("switch_date")
+    last_albaranes_date = service_layer_meta.get("last_albaranes_date")
+    last_solicitudes_visible_date = service_layer_meta.get("last_solicitudes_visible_date")
+    last_hybrid_date = service_layer_meta.get("last_hybrid_date")
+    overlap_days = service_layer_meta.get("overlap_days_ge_switch", [])
+    lines = [
+        "# Service Layer Audit",
+        "",
+        "## Combinación de fuentes",
+        "- Para fechas anteriores al corte se usa `Informacion_albaranaes.xlsx` como verdad final consolidada.",
+        "- Para fechas desde el corte en adelante se usa `lineas_solicitudes_con_pedidos.xlsx` como visibilidad operativa viva.",
+        "- La capa final no suma ambas fuentes en el tramo reciente; en solapes >= corte manda `solicitudes`.",
+        "",
+        "## Fecha de corte",
+        f"- `service_switch_date`: {switch_date.date() if pd.notna(switch_date) else 'NA'}",
+        f"- Última fecha en albaranes: {last_albaranes_date.date() if pd.notna(last_albaranes_date) else 'NA'}",
+        f"- Última fecha visible en solicitudes: {last_solicitudes_visible_date.date() if pd.notna(last_solicitudes_visible_date) else 'NA'}",
+        f"- Última fecha cubierta por la capa híbrida: {last_hybrid_date.date() if pd.notna(last_hybrid_date) else 'NA'}",
+        "",
+        "## Semántica por tramo",
+        "- `service_source = albaranes`, `service_truth_status = observado_final`, `is_final_service_truth = 1` para histórico cerrado.",
+        "- `service_source = solicitudes`, `service_truth_status = visible_cartera`, `is_final_service_truth = 0` para tramo reciente/futuro visible.",
+        "",
+        "## Nowcasting",
+        "- Se mantiene, pero recalibrado a corto plazo.",
+        "- El ajuste por cartera se conserva solo en horizonte corto 0-7 días.",
+        "- En horizonte 8-28 días queda neutralizado para no sobreponderar la misma señal de solicitudes que ya alimenta la capa híbrida reciente.",
+        "- Los scalers del nowcasting se calibran sobre servicio final (`is_final_service_truth = 1`) cuando existe base suficiente.",
+        "",
+        "## Histórico de forecasts",
+        f"- Histórico diario: `{daily_history_path}`",
+        f"- Histórico semanal: `{weekly_history_path}`",
+        "- Cada ejecución guarda timestamp de emisión, fecha de ejecución, fecha objetivo, KPI, forecast, modelo y contexto de fuente.",
+        "",
+        "## Forecast vs actual",
+        f"- Diario: `{daily_vs_actual_path}`",
+        f"- Semanal: `{weekly_vs_actual_path}`",
+        "- La comparación usa la mejor realidad disponible por KPI y fecha.",
+        "- Para servicios, el `actual_truth_status` distingue entre `observado_final` y `visible_cartera`.",
+        "",
+        "## Cobertura actual",
+        f"- Días con prioridad explícita de solicitudes en el tramo reciente: {service_layer_meta.get('days_from_solicitudes', 0)}",
+        f"- Días con prioridad de albaranes: {service_layer_meta.get('days_from_albaranes', 0)}",
+        f"- Días de solape >= corte detectados: {len(overlap_days)}",
+        "",
+        "## Limpieza de pruebas anteriores",
+        f"- Salidas ad hoc de `outputs/comparisons` {'eliminadas' if cleaned_ad_hoc_outputs else 'no encontradas'} para evitar mezclar comparativas informales con la operativa vigente.",
+        "- El histórico formal se inicia y mantiene en `forecast_history_*.parquet`.",
+    ]
+    (REPORTS_DIR / "service_layer_audit.md").write_text("\n".join(lines), encoding="utf-8")
+
+
 def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
     ensure_dirs(FORECASTS_DIR, PLOTS_DIR)
     context = ensure_processed_context(settings, aliases, regex_rules)
     datasets = load_datasets(settings, aliases, regex_rules)
     metrics_path = BACKTESTS_DIR / "backtest_metrics_all.csv"
     metrics = pd.read_csv(metrics_path) if metrics_path.exists() else pd.DataFrame()
+    run_timestamp = _current_run_timestamp(settings)
+    run_date = run_timestamp.tz_localize(None).normalize() if getattr(run_timestamp, "tzinfo", None) is not None else pd.Timestamp(run_timestamp).normalize()
+    pipeline_run_id = str(uuid.uuid4())
+    switch_date = context.get("service_layer_meta", {}).get("switch_date")
+    if pd.isna(switch_date):
+        switch_candidates = pd.to_datetime(context["fact_servicio_dia"].loc[context["fact_servicio_dia"]["service_source"] == "solicitudes", "fecha"]) if "service_source" in context["fact_servicio_dia"].columns else pd.Series(dtype="datetime64[ns]")
+        switch_date = switch_candidates.min().normalize() if not switch_candidates.empty else pd.NaT
 
     service_daily_forecasts = []
     direct_picking_forecasts = []
@@ -365,13 +478,12 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
 
     for name, df in datasets.items():
         frequency = "daily" if name.endswith("_dia") else "weekly"
-        actual_mask = df.get("is_actual", 1) == 1
-        latest_actual = pd.to_datetime(df.loc[actual_mask, "fecha"]).max()
+        origin_date = _forecast_origin_date(df, run_date)
         horizon = settings["training"]["daily_horizon"] if frequency == "daily" else settings["training"]["weekly_horizon"]
-        future = df[pd.to_datetime(df["fecha"]) > latest_actual].head(horizon).copy()
+        future = df[pd.to_datetime(df["fecha"]) > run_date].head(horizon).copy()
         if future.empty:
             continue
-        history_df = df.loc[(pd.to_datetime(df["fecha"]) <= latest_actual) & (df.get("is_actual", 1) == 1)].copy()
+        history_df = df.loc[(pd.to_datetime(df["fecha"]) <= origin_date) & (df.get("is_actual", 1) == 1)].copy()
         history = history_df.set_index(pd.to_datetime(history_df["fecha"]))["target"].astype(float)
         model_name = _best_model_name(metrics, name)
         forecaster = _fit_best_forecaster(df, settings, frequency, model_name)
@@ -385,23 +497,35 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
                 forecast = forecast.rename(columns={"prediction": "forecast"})
                 forecast["tipo_servicio"] = tipo_servicio
                 scalers = fit_cartera_scalers(context["fact_servicio_dia"], context["fact_cartera"])
-                forecast = apply_nowcasting(forecast, context["fact_cartera"], scalers, latest_actual, settings, maturity_curves=context["cartera_maturity_curves"])
+                forecast = apply_nowcasting(forecast, context["fact_cartera"], scalers, run_date, settings, maturity_curves=context["cartera_maturity_curves"])
                 forecast["kpi"] = name.replace("ds_", "").replace("_dia", "")
-                service_daily_forecasts.append(forecast[["fecha", "tipo_servicio", "forecast", "kpi", "model_name"]])
+                forecast["source"] = "service_model"
+                service_daily_forecasts.append(forecast[["fecha", "tipo_servicio", "forecast", "kpi", "model_name", "source"]])
                 plot_history_and_forecast(history_df[["fecha", "target"]].tail(120), forecast[["fecha", "forecast"]], name, PLOTS_DIR / f"forecast_{name}.png")
             else:
-                weekly_forecasts.append(forecast.rename(columns={"prediction": "forecast"}).assign(kpi=name.replace("ds_", "").replace("_semana", ""), source="weekly_direct"))
+                weekly_forecasts.append(
+                    forecast.rename(columns={"prediction": "forecast"}).assign(
+                        kpi=name.replace("ds_", "").replace("_semana", ""),
+                        source="weekly_direct",
+                    )
+                )
         elif name.startswith("ds_picking"):
             if frequency == "daily":
                 direct = forecast.rename(columns={"prediction": "forecast"})
                 direct["kpi"] = name.replace("ds_", "").replace("_dia", "")
-                direct_picking_forecasts.append(direct[["fecha", "forecast", "kpi", "model_name"]])
+                direct["source"] = "picking_model"
+                direct_picking_forecasts.append(direct[["fecha", "forecast", "kpi", "model_name", "source"]])
                 plot_history_and_forecast(history_df[["fecha", "target"]].tail(120), direct[["fecha", "forecast"]], name, PLOTS_DIR / f"forecast_{name}.png")
             else:
-                weekly_forecasts.append(forecast.rename(columns={"prediction": "forecast"}).assign(kpi=name.replace("ds_", "").replace("_semana", ""), source="weekly_direct"))
+                weekly_forecasts.append(
+                    forecast.rename(columns={"prediction": "forecast"}).assign(
+                        kpi=name.replace("ds_", "").replace("_semana", ""),
+                        source="weekly_direct",
+                    )
+                )
 
-    service_daily = pd.concat(service_daily_forecasts, ignore_index=True) if service_daily_forecasts else pd.DataFrame(columns=["fecha", "tipo_servicio", "forecast", "kpi", "model_name"])
-    direct_picking = pd.concat(direct_picking_forecasts, ignore_index=True) if direct_picking_forecasts else pd.DataFrame(columns=["fecha", "forecast", "kpi", "model_name"])
+    service_daily = pd.concat(service_daily_forecasts, ignore_index=True) if service_daily_forecasts else pd.DataFrame(columns=["fecha", "tipo_servicio", "forecast", "kpi", "model_name", "source"])
+    direct_picking = pd.concat(direct_picking_forecasts, ignore_index=True) if direct_picking_forecasts else pd.DataFrame(columns=["fecha", "forecast", "kpi", "model_name", "source"])
 
     transformer = fit_transformer(context["joins"]["movimientos_albaranes"], context["albaranes"])
     if not transformer["global_curve"].empty:
@@ -410,22 +534,62 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
         transformer["intensity"].to_csv(FORECASTS_DIR / "transformer_intensity.csv", index=False)
         transformer["offset_probs"].to_csv(FORECASTS_DIR / "transformer_offsets.csv", index=False)
 
-    transformed_lines = apply_transformer(service_daily[["fecha", "tipo_servicio", "forecast"]], transformer, metric="lines").assign(kpi="picking_lines_PI_transformer") if not service_daily.empty else pd.DataFrame()
-    transformed_units = apply_transformer(service_daily[["fecha", "tipo_servicio", "forecast"]], transformer, metric="units").assign(kpi="picking_units_PI_transformer") if not service_daily.empty else pd.DataFrame()
-    transformed = pd.concat([transformed_lines, transformed_units], ignore_index=True) if not transformed_lines.empty or not transformed_units.empty else pd.DataFrame(columns=["fecha", "tipo_servicio", "forecast", "kpi"])
+    transformed_lines = (
+        apply_transformer(service_daily[["fecha", "tipo_servicio", "forecast"]], transformer, metric="lines").assign(kpi="picking_lines_PI_transformer", model_name="transformer_service_to_picking", source="service_to_picking_transformer")
+        if not service_daily.empty
+        else pd.DataFrame()
+    )
+    transformed_units = (
+        apply_transformer(service_daily[["fecha", "tipo_servicio", "forecast"]], transformer, metric="units").assign(kpi="picking_units_PI_transformer", model_name="transformer_service_to_picking", source="service_to_picking_transformer")
+        if not service_daily.empty
+        else pd.DataFrame()
+    )
+    transformed = pd.concat([transformed_lines, transformed_units], ignore_index=True) if not transformed_lines.empty or not transformed_units.empty else pd.DataFrame(columns=["fecha", "tipo_servicio", "forecast", "kpi", "model_name", "source"])
+    if not transformed.empty:
+        transformed = transformed[pd.to_datetime(transformed["fecha"]) >= run_date].copy()
 
     daily_frames = [
-        frame[["fecha", "forecast", "kpi"]]
+        frame[["fecha", "forecast", "kpi", "model_name", "source"]]
         for frame in [service_daily, direct_picking, transformed]
         if not frame.empty
     ]
-    daily_output = pd.concat(daily_frames, ignore_index=True) if daily_frames else pd.DataFrame(columns=["fecha", "forecast", "kpi"])
+    daily_output = pd.concat(daily_frames, ignore_index=True) if daily_frames else pd.DataFrame(columns=["fecha", "forecast", "kpi", "model_name", "source"])
+    daily_output["forecast_run_timestamp"] = run_timestamp.isoformat()
+    daily_output["forecast_run_date"] = run_date
+    daily_output["pipeline_run_id"] = pipeline_run_id
     daily_output.to_csv(FORECASTS_DIR / "daily_forecasts.csv", index=False)
 
-    weekly_from_daily = reconcile_weekly_from_daily(daily_output) if not daily_output.empty else pd.DataFrame(columns=["fecha", "kpi", "forecast"])
+    weekly_from_daily = reconcile_weekly_from_daily(daily_output[["fecha", "kpi", "forecast"]]) if not daily_output.empty else pd.DataFrame(columns=["fecha", "kpi", "forecast"])
     weekly_direct = pd.concat(weekly_forecasts, ignore_index=True) if weekly_forecasts else pd.DataFrame(columns=["fecha", "forecast", "kpi", "source"])
     weekly_output = pd.concat([weekly_from_daily.assign(source="daily_aggregated"), weekly_direct], ignore_index=True, sort=False)
+    weekly_output["forecast_run_timestamp"] = run_timestamp.isoformat()
+    weekly_output["forecast_run_date"] = run_date
+    weekly_output["pipeline_run_id"] = pipeline_run_id
     weekly_output.to_csv(FORECASTS_DIR / "weekly_forecasts.csv", index=False)
+
+    daily_history_rows = prepare_forecast_output_for_history(daily_output, run_timestamp, pipeline_run_id, "daily", switch_date=switch_date)
+    weekly_history_rows = prepare_forecast_output_for_history(weekly_output, run_timestamp, pipeline_run_id, "weekly", switch_date=switch_date)
+    daily_history_path = FORECASTS_DIR / "forecast_history_daily.parquet"
+    weekly_history_path = FORECASTS_DIR / "forecast_history_weekly.parquet"
+    daily_history = append_forecast_history(daily_history_rows, daily_history_path)
+    weekly_history = append_forecast_history(weekly_history_rows, weekly_history_path)
+
+    actuals_daily = build_actuals_daily(context["fact_servicio_dia"], context["fact_picking_dia"])
+    actuals_weekly = build_actuals_weekly(actuals_daily)
+    forecast_vs_actual_daily = build_forecast_vs_actual(daily_history, actuals_daily)
+    forecast_vs_actual_weekly = build_forecast_vs_actual(weekly_history, actuals_weekly)
+    forecast_vs_actual_daily.to_csv(FORECASTS_DIR / "forecast_vs_actual_daily.csv", index=False)
+    forecast_vs_actual_weekly.to_csv(FORECASTS_DIR / "forecast_vs_actual_weekly.csv", index=False)
+
+    cleaned_ad_hoc_outputs = _clean_informal_forecast_outputs()
+    _write_service_layer_audit(
+        context.get("service_layer_meta", {}),
+        daily_history_path,
+        weekly_history_path,
+        FORECASTS_DIR / "forecast_vs_actual_daily.csv",
+        FORECASTS_DIR / "forecast_vs_actual_weekly.csv",
+        cleaned_ad_hoc_outputs,
+    )
     return daily_output, weekly_output
 
 

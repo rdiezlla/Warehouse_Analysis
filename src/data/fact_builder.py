@@ -6,9 +6,31 @@ import pandas as pd
 from src.utils.date_utils import monday_of_week
 
 
-def build_fact_servicio_dia(albaranes: pd.DataFrame, dim_date: pd.DataFrame) -> pd.DataFrame:
+SERVICE_COUNT_COLUMNS = [
+    "n_entregas_SGE_dia",
+    "n_entregas_SGP_dia",
+    "n_recogidas_EGE_dia",
+    "n_entregas_total_dia",
+    "n_recogidas_total_dia",
+    "n_servicios_total_dia",
+]
+
+
+def _service_switch_date(settings: dict, albaranes_fact: pd.DataFrame) -> pd.Timestamp:
+    configured = settings.get("service_layer", {}).get("switch_date")
+    if configured:
+        return pd.Timestamp(configured).normalize()
+    fallback_days = int(settings.get("service_layer", {}).get("fallback_days_after_albaranes", 1))
+    last_albaranes_date = pd.to_datetime(albaranes_fact["fecha"]).max()
+    if pd.isna(last_albaranes_date):
+        raise ValueError("Cannot infer service switch date without albaranes history or explicit config.service_layer.switch_date")
+    return pd.Timestamp(last_albaranes_date).normalize() + pd.Timedelta(days=fallback_days)
+
+def build_fact_servicio_dia_from_albaranes(albaranes: pd.DataFrame) -> pd.DataFrame:
     df = albaranes.copy()
     df = df[df["fecha_servicio"].notna()].copy()
+    if df.empty:
+        return pd.DataFrame(columns=["fecha", *SERVICE_COUNT_COLUMNS, "service_source", "service_truth_status", "is_final_service_truth"])
     df["fecha"] = df["fecha_servicio"].dt.normalize()
     df["is_entrega_sge"] = ((df["tipo_servicio"] == "SGE") & (df["clase_servicio"] == "entrega")).astype(int)
     df["is_entrega_sgp"] = ((df["tipo_servicio"] == "SGP") & (df["clase_servicio"] == "entrega")).astype(int)
@@ -30,7 +52,18 @@ def build_fact_servicio_dia(albaranes: pd.DataFrame, dim_date: pd.DataFrame) -> 
     for urgency in ["NO", "SI", "MUY_URGENTE", "UNKNOWN"]:
         out[f"n_urgencia_{urgency.lower()}_dia"] = grouped[f"is_urgencia_{urgency.lower()}"].sum()
 
-    for source, target in [("peso_kg", "sum_peso_kg_dia"), ("vol_m3", "sum_vol_m3_dia"), ("kg_volumetrico", "sum_kg_volumetrico_dia"), ("kg_facturable", "sum_kg_facturable_dia"), ("cajas_in", "sum_cajas_in_dia"), ("pales_in", "sum_pales_in_dia"), ("m3_in", "sum_m3_in_dia"), ("cajas_out", "sum_cajas_out_dia"), ("pales_out", "sum_pales_out_dia"), ("m3_out", "sum_m3_out_dia")]:
+    for source, target in [
+        ("peso_kg", "sum_peso_kg_dia"),
+        ("vol_m3", "sum_vol_m3_dia"),
+        ("kg_volumetrico", "sum_kg_volumetrico_dia"),
+        ("kg_facturable", "sum_kg_facturable_dia"),
+        ("cajas_in", "sum_cajas_in_dia"),
+        ("pales_in", "sum_pales_in_dia"),
+        ("m3_in", "sum_m3_in_dia"),
+        ("cajas_out", "sum_cajas_out_dia"),
+        ("pales_out", "sum_pales_out_dia"),
+        ("m3_out", "sum_m3_out_dia"),
+    ]:
         out[target] = grouped[source].sum(min_count=1)
         out[f"pct_missing_{source}_dia"] = grouped[source].apply(lambda x: float(x.isna().mean()))
 
@@ -38,7 +71,122 @@ def build_fact_servicio_dia(albaranes: pd.DataFrame, dim_date: pd.DataFrame) -> 
     out["p50_kg_facturable_dia"] = grouped["kg_facturable"].median()
     out["p90_kg_facturable_dia"] = grouped["kg_facturable"].quantile(0.90)
     out["p95_kg_facturable_dia"] = grouped["kg_facturable"].quantile(0.95)
-    return out.reset_index()
+    out = out.reset_index()
+    out["service_source"] = "albaranes"
+    out["service_truth_status"] = "observado_final"
+    out["is_final_service_truth"] = 1
+    return out
+
+
+def build_fact_servicio_dia_from_solicitudes(solicitudes_maestro: pd.DataFrame) -> pd.DataFrame:
+    df = solicitudes_maestro.copy()
+    df = df[df["fecha_inicio_evento"].notna()].copy()
+    if df.empty:
+        return pd.DataFrame(columns=["fecha", *SERVICE_COUNT_COLUMNS, "service_source", "service_truth_status", "is_final_service_truth"])
+    if "urgencia_norm" not in df.columns:
+        df["urgencia_norm"] = "UNKNOWN"
+
+    df["cantidad_kg"] = df["cant_solicitada"].fillna(0) * df["kilos"].fillna(0)
+    df["cantidad_m3"] = df["cant_solicitada"].fillna(0) * df["m3"].fillna(0)
+    request_level = (
+        df.groupby("codigo_generico")
+        .agg(
+            fecha=("fecha_inicio_evento", "min"),
+            tipo_servicio=("tipo_servicio", lambda x: x.dropna().iloc[0] if x.dropna().any() else "UNK"),
+            clase_servicio=("clase_servicio", lambda x: x.dropna().iloc[0] if x.dropna().any() else "UNK"),
+            urgencia_norm=("urgencia_norm", lambda x: x.dropna().iloc[0] if x.dropna().any() else "UNKNOWN"),
+            lineas_solicitadas=("linea_solicitada", "sum"),
+            articulos_distintos=("codigo_articulo", pd.Series.nunique),
+            unidades_solicitadas=("cant_solicitada", "sum"),
+            kg_solicitados=("cantidad_kg", "sum"),
+            m3_solicitados=("cantidad_m3", "sum"),
+        )
+        .reset_index()
+    )
+    request_level["fecha"] = pd.to_datetime(request_level["fecha"]).dt.normalize()
+    request_level["is_entrega_sge"] = ((request_level["tipo_servicio"] == "SGE") & (request_level["clase_servicio"] == "entrega")).astype(int)
+    request_level["is_entrega_sgp"] = ((request_level["tipo_servicio"] == "SGP") & (request_level["clase_servicio"] == "entrega")).astype(int)
+    request_level["is_recogida_ege"] = ((request_level["tipo_servicio"] == "EGE") & (request_level["clase_servicio"] == "recogida")).astype(int)
+    request_level["is_entrega"] = (request_level["clase_servicio"] == "entrega").astype(int)
+    request_level["is_recogida"] = (request_level["clase_servicio"] == "recogida").astype(int)
+    for urgency in ["NO", "SI", "MUY_URGENTE", "UNKNOWN"]:
+        request_level[f"is_urgencia_{urgency.lower()}"] = (request_level["urgencia_norm"] == urgency).astype(int)
+
+    grouped = request_level.groupby("fecha")
+    out = pd.DataFrame(index=grouped.size().index)
+    out["n_entregas_SGE_dia"] = grouped["is_entrega_sge"].sum()
+    out["n_entregas_SGP_dia"] = grouped["is_entrega_sgp"].sum()
+    out["n_recogidas_EGE_dia"] = grouped["is_recogida_ege"].sum()
+    out["n_entregas_total_dia"] = grouped["is_entrega"].sum()
+    out["n_recogidas_total_dia"] = grouped["is_recogida"].sum()
+    out["n_servicios_total_dia"] = grouped.size().astype(int)
+    for urgency in ["NO", "SI", "MUY_URGENTE", "UNKNOWN"]:
+        out[f"n_urgencia_{urgency.lower()}_dia"] = grouped[f"is_urgencia_{urgency.lower()}"].sum()
+    out["lineas_solicitadas_dia"] = grouped["lineas_solicitadas"].sum()
+    out["articulos_distintos_dia"] = grouped["articulos_distintos"].sum()
+    out["unidades_solicitadas_dia"] = grouped["unidades_solicitadas"].sum()
+    out["kg_solicitados_dia"] = grouped["kg_solicitados"].sum()
+    out["m3_solicitados_dia"] = grouped["m3_solicitados"].sum()
+    out = out.reset_index()
+    out["service_source"] = "solicitudes"
+    out["service_truth_status"] = "visible_cartera"
+    out["is_final_service_truth"] = 0
+    return out
+
+
+def build_fact_servicio_dia(
+    albaranes: pd.DataFrame,
+    solicitudes_maestro: pd.DataFrame,
+    settings: dict,
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, object]]:
+    albaranes_fact = build_fact_servicio_dia_from_albaranes(albaranes)
+    solicitudes_fact = build_fact_servicio_dia_from_solicitudes(solicitudes_maestro)
+    switch_date = _service_switch_date(settings, albaranes_fact)
+
+    common_columns = sorted(set(albaranes_fact.columns).union(solicitudes_fact.columns))
+    albaranes_fact = albaranes_fact.reindex(columns=common_columns)
+    solicitudes_fact = solicitudes_fact.reindex(columns=common_columns)
+
+    hybrid = pd.concat(
+        [
+            albaranes_fact[pd.to_datetime(albaranes_fact["fecha"]) < switch_date],
+            solicitudes_fact[pd.to_datetime(solicitudes_fact["fecha"]) >= switch_date],
+        ],
+        ignore_index=True,
+        sort=False,
+    ).sort_values("fecha")
+
+    hybrid = hybrid.drop_duplicates(subset=["fecha"], keep="last").reset_index(drop=True)
+    overlap_days = sorted(
+        set(pd.to_datetime(albaranes_fact.loc[pd.to_datetime(albaranes_fact["fecha"]) >= switch_date, "fecha"]).dt.date)
+        .intersection(pd.to_datetime(solicitudes_fact.loc[pd.to_datetime(solicitudes_fact["fecha"]) >= switch_date, "fecha"]).dt.date)
+    )
+    source_day_counts = hybrid["service_source"].value_counts().to_dict()
+    audit_rows = [
+        {"metric": "service_switch_date", "value": str(switch_date.date())},
+        {"metric": "last_albaranes_date", "value": str(pd.to_datetime(albaranes_fact["fecha"]).max().date()) if not albaranes_fact.empty else ""},
+        {"metric": "last_solicitudes_visible_date", "value": str(pd.to_datetime(solicitudes_fact["fecha"]).max().date()) if not solicitudes_fact.empty else ""},
+        {"metric": "last_hybrid_date", "value": str(pd.to_datetime(hybrid["fecha"]).max().date()) if not hybrid.empty else ""},
+        {"metric": "days_from_albaranes", "value": int(source_day_counts.get("albaranes", 0))},
+        {"metric": "days_from_solicitudes", "value": int(source_day_counts.get("solicitudes", 0))},
+        {"metric": "overlap_days_ge_switch", "value": len(overlap_days)},
+        {"metric": "unknown_service_rows_solicitudes", "value": int(solicitudes_maestro["tipo_servicio"].eq("UNK").sum())},
+        {"metric": "unknown_service_pct_solicitudes", "value": float(solicitudes_maestro["tipo_servicio"].eq("UNK").mean()) if len(solicitudes_maestro) else 0.0},
+        {"metric": "solicitudes_rows_sge", "value": int(solicitudes_maestro["tipo_servicio"].eq("SGE").sum())},
+        {"metric": "solicitudes_rows_sgp", "value": int(solicitudes_maestro["tipo_servicio"].eq("SGP").sum())},
+        {"metric": "solicitudes_rows_ege", "value": int(solicitudes_maestro["tipo_servicio"].eq("EGE").sum())},
+    ]
+    audit_report = pd.DataFrame(audit_rows)
+    audit_meta = {
+        "switch_date": switch_date,
+        "last_albaranes_date": pd.to_datetime(albaranes_fact["fecha"]).max() if not albaranes_fact.empty else pd.NaT,
+        "last_solicitudes_visible_date": pd.to_datetime(solicitudes_fact["fecha"]).max() if not solicitudes_fact.empty else pd.NaT,
+        "last_hybrid_date": pd.to_datetime(hybrid["fecha"]).max() if not hybrid.empty else pd.NaT,
+        "days_from_albaranes": int(source_day_counts.get("albaranes", 0)),
+        "days_from_solicitudes": int(source_day_counts.get("solicitudes", 0)),
+        "overlap_days_ge_switch": overlap_days,
+    }
+    return hybrid, audit_report, audit_meta
 
 
 def build_fact_picking_dia(movimientos_maestro: pd.DataFrame, heavy_item_kg: float, bulky_item_m3: float) -> tuple[pd.DataFrame, pd.DataFrame]:

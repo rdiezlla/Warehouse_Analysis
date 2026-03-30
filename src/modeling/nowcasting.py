@@ -30,7 +30,12 @@ def build_cartera_maturity_curves(fact_cartera: pd.DataFrame, max_horizon: int =
 
 
 def fit_cartera_scalers(actual_service_fact: pd.DataFrame, fact_cartera: pd.DataFrame) -> pd.DataFrame:
-    actual = actual_service_fact[["fecha", "n_entregas_SGE_dia", "n_entregas_SGP_dia", "n_recogidas_EGE_dia"]].copy()
+    final_truth = actual_service_fact.copy()
+    if "is_final_service_truth" in final_truth.columns:
+        final_truth = final_truth[final_truth["is_final_service_truth"] == 1].copy()
+    if final_truth.empty:
+        final_truth = actual_service_fact.copy()
+    actual = final_truth[["fecha", "n_entregas_SGE_dia", "n_entregas_SGP_dia", "n_recogidas_EGE_dia"]].copy()
     actual = actual.melt(id_vars="fecha", var_name="kpi", value_name="actual")
     actual["tipo_servicio"] = actual["kpi"].map({
         "n_entregas_SGE_dia": "SGE",
