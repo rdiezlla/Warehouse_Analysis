@@ -19,6 +19,7 @@ from src.data.joiner import build_join_outputs
 from src.features.transformer_features import build_transformer_training_table
 from src.logging_config import setup_logging
 from src.modeling.backtesting import backtest_dataset
+from src.modeling.baselines import median_by_day_of_week, moving_average, seasonal_naive
 from src.modeling.datasets import build_and_save_datasets
 from src.modeling.evaluation import rank_models, summarize_oof_predictions
 from src.modeling.feature_policy import load_feature_policy
@@ -378,6 +379,23 @@ def _fit_best_forecaster(df: pd.DataFrame, settings: dict, frequency: str, model
     return forecaster
 
 
+def _predict_with_model_name(df: pd.DataFrame, settings: dict, frequency: str, model_name: str, history: pd.Series, future: pd.DataFrame) -> pd.DataFrame:
+    future_dates = pd.DatetimeIndex(pd.to_datetime(future["fecha"]))
+    if model_name == "seasonal_naive":
+        seasonal_lag = 7 if frequency == "daily" else 52
+        pred = seasonal_naive(history, future_dates, seasonal_lag)
+        return pd.DataFrame({"fecha": future_dates, "prediction": pred.values})
+    if model_name == "moving_average":
+        window = 7 if frequency == "daily" else 4
+        pred = moving_average(history, future_dates, window)
+        return pd.DataFrame({"fecha": future_dates, "prediction": pred.values})
+    if model_name == "median_dow":
+        pred = median_by_day_of_week(history, future_dates) if frequency == "daily" else moving_average(history, future_dates, 4)
+        return pd.DataFrame({"fecha": future_dates, "prediction": pred.values})
+    forecaster = _fit_best_forecaster(df, settings, frequency, model_name)
+    return forecaster.predict(history, future)
+
+
 def _current_run_timestamp(settings: dict) -> pd.Timestamp:
     timezone = settings.get("forecast", {}).get("history_timezone", "Europe/Madrid")
     return pd.Timestamp.now(tz=timezone)
@@ -475,6 +493,7 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
     service_daily_forecasts = []
     direct_picking_forecasts = []
     weekly_forecasts = []
+    nowcasting_trace_rows = []
 
     for name, df in datasets.items():
         frequency = "daily" if name.endswith("_dia") else "weekly"
@@ -486,8 +505,7 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
         history_df = df.loc[(pd.to_datetime(df["fecha"]) <= origin_date) & (df.get("is_actual", 1) == 1)].copy()
         history = history_df.set_index(pd.to_datetime(history_df["fecha"]))["target"].astype(float)
         model_name = _best_model_name(metrics, name)
-        forecaster = _fit_best_forecaster(df, settings, frequency, model_name)
-        forecast = forecaster.predict(history, future)
+        forecast = _predict_with_model_name(df, settings, frequency, model_name, history, future)
         forecast["dataset_name"] = name
         forecast["model_name"] = model_name
 
@@ -496,10 +514,23 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
             if frequency == "daily":
                 forecast = forecast.rename(columns={"prediction": "forecast"})
                 forecast["tipo_servicio"] = tipo_servicio
+                base_forecast = forecast.copy()
                 scalers = fit_cartera_scalers(context["fact_servicio_dia"], context["fact_cartera"])
                 forecast = apply_nowcasting(forecast, context["fact_cartera"], scalers, run_date, settings, maturity_curves=context["cartera_maturity_curves"])
                 forecast["kpi"] = name.replace("ds_", "").replace("_dia", "")
                 forecast["source"] = "service_model"
+                trace = base_forecast.rename(columns={"forecast": "forecast_base"}).merge(
+                    forecast[["fecha", "tipo_servicio", "forecast"]],
+                    on=["fecha", "tipo_servicio"],
+                    how="left",
+                ).rename(columns={"forecast": "forecast_final"})
+                trace["kpi"] = forecast["kpi"].iloc[0]
+                trace["model_name"] = model_name
+                trace["forecast_run_timestamp"] = run_timestamp.isoformat()
+                trace["forecast_run_date"] = run_date
+                trace["pipeline_run_id"] = pipeline_run_id
+                trace["horizon_days"] = (pd.to_datetime(trace["fecha"]) - run_date).dt.days
+                nowcasting_trace_rows.append(trace)
                 service_daily_forecasts.append(forecast[["fecha", "tipo_servicio", "forecast", "kpi", "model_name", "source"]])
                 plot_history_and_forecast(history_df[["fecha", "target"]].tail(120), forecast[["fecha", "forecast"]], name, PLOTS_DIR / f"forecast_{name}.png")
             else:
@@ -558,6 +589,10 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
     daily_output["forecast_run_date"] = run_date
     daily_output["pipeline_run_id"] = pipeline_run_id
     daily_output.to_csv(FORECASTS_DIR / "daily_forecasts.csv", index=False)
+    nowcasting_trace = pd.concat(nowcasting_trace_rows, ignore_index=True) if nowcasting_trace_rows else pd.DataFrame(
+        columns=["fecha", "tipo_servicio", "forecast_base", "forecast_final", "kpi", "model_name", "forecast_run_timestamp", "forecast_run_date", "pipeline_run_id", "horizon_days"]
+    )
+    nowcasting_trace.to_csv(FORECASTS_DIR / "nowcasting_trace_daily.csv", index=False)
 
     weekly_from_daily = reconcile_weekly_from_daily(daily_output[["fecha", "kpi", "forecast"]]) if not daily_output.empty else pd.DataFrame(columns=["fecha", "kpi", "forecast"])
     weekly_direct = pd.concat(weekly_forecasts, ignore_index=True) if weekly_forecasts else pd.DataFrame(columns=["fecha", "forecast", "kpi", "source"])
