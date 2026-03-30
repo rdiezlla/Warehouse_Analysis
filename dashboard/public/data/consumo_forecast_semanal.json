@@ -1,0 +1,1592 @@
+[
+  {
+    "week_start_date": "2025-12-28",
+    "kpi": "entregas_sge",
+    "forecast_value": 553,
+    "actual_value": 549
+  },
+  {
+    "week_start_date": "2025-12-28",
+    "kpi": "entregas_sgp",
+    "forecast_value": 456,
+    "actual_value": 462
+  },
+  {
+    "week_start_date": "2025-12-28",
+    "kpi": "recogidas_ege",
+    "forecast_value": 361,
+    "actual_value": 366
+  },
+  {
+    "week_start_date": "2025-12-28",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 7500,
+    "actual_value": 7400
+  },
+  {
+    "week_start_date": "2025-12-28",
+    "kpi": "picking_units_pi",
+    "forecast_value": 111071,
+    "actual_value": 105866
+  },
+  {
+    "week_start_date": "2026-01-04",
+    "kpi": "entregas_sge",
+    "forecast_value": 1077,
+    "actual_value": 1068
+  },
+  {
+    "week_start_date": "2026-01-04",
+    "kpi": "entregas_sgp",
+    "forecast_value": 853,
+    "actual_value": 823
+  },
+  {
+    "week_start_date": "2026-01-04",
+    "kpi": "recogidas_ege",
+    "forecast_value": 645,
+    "actual_value": 607
+  },
+  {
+    "week_start_date": "2026-01-04",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13115,
+    "actual_value": 12226
+  },
+  {
+    "week_start_date": "2026-01-04",
+    "kpi": "picking_units_pi",
+    "forecast_value": 188232,
+    "actual_value": 177607
+  },
+  {
+    "week_start_date": "2026-01-11",
+    "kpi": "entregas_sge",
+    "forecast_value": 1001,
+    "actual_value": 936
+  },
+  {
+    "week_start_date": "2026-01-11",
+    "kpi": "entregas_sgp",
+    "forecast_value": 767,
+    "actual_value": 732
+  },
+  {
+    "week_start_date": "2026-01-11",
+    "kpi": "recogidas_ege",
+    "forecast_value": 553,
+    "actual_value": 542
+  },
+  {
+    "week_start_date": "2026-01-11",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 11946,
+    "actual_value": 11985
+  },
+  {
+    "week_start_date": "2026-01-11",
+    "kpi": "picking_units_pi",
+    "forecast_value": 172190,
+    "actual_value": 173296
+  },
+  {
+    "week_start_date": "2026-01-18",
+    "kpi": "entregas_sge",
+    "forecast_value": 876,
+    "actual_value": 882
+  },
+  {
+    "week_start_date": "2026-01-18",
+    "kpi": "entregas_sgp",
+    "forecast_value": 703,
+    "actual_value": 704
+  },
+  {
+    "week_start_date": "2026-01-18",
+    "kpi": "recogidas_ege",
+    "forecast_value": 531,
+    "actual_value": 519
+  },
+  {
+    "week_start_date": "2026-01-18",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 12146,
+    "actual_value": 11539
+  },
+  {
+    "week_start_date": "2026-01-18",
+    "kpi": "picking_units_pi",
+    "forecast_value": 183237,
+    "actual_value": 171043
+  },
+  {
+    "week_start_date": "2026-01-25",
+    "kpi": "entregas_sge",
+    "forecast_value": 937,
+    "actual_value": 881
+  },
+  {
+    "week_start_date": "2026-01-25",
+    "kpi": "entregas_sgp",
+    "forecast_value": 782,
+    "actual_value": 729
+  },
+  {
+    "week_start_date": "2026-01-25",
+    "kpi": "recogidas_ege",
+    "forecast_value": 621,
+    "actual_value": 586
+  },
+  {
+    "week_start_date": "2026-01-25",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13446,
+    "actual_value": 13044
+  },
+  {
+    "week_start_date": "2026-01-25",
+    "kpi": "picking_units_pi",
+    "forecast_value": 202881,
+    "actual_value": 201997
+  },
+  {
+    "week_start_date": "2026-02-01",
+    "kpi": "entregas_sge",
+    "forecast_value": 1079,
+    "actual_value": 1060
+  },
+  {
+    "week_start_date": "2026-02-01",
+    "kpi": "entregas_sgp",
+    "forecast_value": 867,
+    "actual_value": 871
+  },
+  {
+    "week_start_date": "2026-02-01",
+    "kpi": "recogidas_ege",
+    "forecast_value": 667,
+    "actual_value": 672
+  },
+  {
+    "week_start_date": "2026-02-01",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13595,
+    "actual_value": 13472
+  },
+  {
+    "week_start_date": "2026-02-01",
+    "kpi": "picking_units_pi",
+    "forecast_value": 197048,
+    "actual_value": 189985
+  },
+  {
+    "week_start_date": "2026-02-08",
+    "kpi": "entregas_sge",
+    "forecast_value": 1055,
+    "actual_value": 1034
+  },
+  {
+    "week_start_date": "2026-02-08",
+    "kpi": "entregas_sgp",
+    "forecast_value": 811,
+    "actual_value": 771
+  },
+  {
+    "week_start_date": "2026-02-08",
+    "kpi": "recogidas_ege",
+    "forecast_value": 591,
+    "actual_value": 553
+  },
+  {
+    "week_start_date": "2026-02-08",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 12398,
+    "actual_value": 11599
+  },
+  {
+    "week_start_date": "2026-02-08",
+    "kpi": "picking_units_pi",
+    "forecast_value": 177214,
+    "actual_value": 169333
+  },
+  {
+    "week_start_date": "2026-02-15",
+    "kpi": "entregas_sge",
+    "forecast_value": 913,
+    "actual_value": 862
+  },
+  {
+    "week_start_date": "2026-02-15",
+    "kpi": "entregas_sgp",
+    "forecast_value": 718,
+    "actual_value": 695
+  },
+  {
+    "week_start_date": "2026-02-15",
+    "kpi": "recogidas_ege",
+    "forecast_value": 530,
+    "actual_value": 526
+  },
+  {
+    "week_start_date": "2026-02-15",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 12076,
+    "actual_value": 12168
+  },
+  {
+    "week_start_date": "2026-02-15",
+    "kpi": "picking_units_pi",
+    "forecast_value": 180099,
+    "actual_value": 180048
+  },
+  {
+    "week_start_date": "2026-02-22",
+    "kpi": "entregas_sge",
+    "forecast_value": 913,
+    "actual_value": 918
+  },
+  {
+    "week_start_date": "2026-02-22",
+    "kpi": "entregas_sgp",
+    "forecast_value": 760,
+    "actual_value": 753
+  },
+  {
+    "week_start_date": "2026-02-22",
+    "kpi": "recogidas_ege",
+    "forecast_value": 601,
+    "actual_value": 579
+  },
+  {
+    "week_start_date": "2026-02-22",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13293,
+    "actual_value": 12491
+  },
+  {
+    "week_start_date": "2026-02-22",
+    "kpi": "picking_units_pi",
+    "forecast_value": 201845,
+    "actual_value": 188195
+  },
+  {
+    "week_start_date": "2026-03-01",
+    "kpi": "entregas_sge",
+    "forecast_value": 1061,
+    "actual_value": 991
+  },
+  {
+    "week_start_date": "2026-03-01",
+    "kpi": "entregas_sgp",
+    "forecast_value": 868,
+    "actual_value": 813
+  },
+  {
+    "week_start_date": "2026-03-01",
+    "kpi": "recogidas_ege",
+    "forecast_value": 678,
+    "actual_value": 647
+  },
+  {
+    "week_start_date": "2026-03-01",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13951,
+    "actual_value": 13711
+  },
+  {
+    "week_start_date": "2026-03-01",
+    "kpi": "picking_units_pi",
+    "forecast_value": 204669,
+    "actual_value": 205393
+  },
+  {
+    "week_start_date": "2026-03-08",
+    "kpi": "entregas_sge",
+    "forecast_value": 1100,
+    "actual_value": 1093
+  },
+  {
+    "week_start_date": "2026-03-08",
+    "kpi": "entregas_sgp",
+    "forecast_value": 852,
+    "actual_value": 859
+  },
+  {
+    "week_start_date": "2026-03-08",
+    "kpi": "recogidas_ege",
+    "forecast_value": 628,
+    "actual_value": 630
+  },
+  {
+    "week_start_date": "2026-03-08",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 12945,
+    "actual_value": 12667
+  },
+  {
+    "week_start_date": "2026-03-08",
+    "kpi": "picking_units_pi",
+    "forecast_value": 184540,
+    "actual_value": 175518
+  },
+  {
+    "week_start_date": "2026-03-15",
+    "kpi": "entregas_sge",
+    "forecast_value": 963,
+    "actual_value": 930
+  },
+  {
+    "week_start_date": "2026-03-15",
+    "kpi": "entregas_sgp",
+    "forecast_value": 747,
+    "actual_value": 702
+  },
+  {
+    "week_start_date": "2026-03-15",
+    "kpi": "recogidas_ege",
+    "forecast_value": 543,
+    "actual_value": 507
+  },
+  {
+    "week_start_date": "2026-03-15",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 12149,
+    "actual_value": 11471
+  },
+  {
+    "week_start_date": "2026-03-15",
+    "kpi": "picking_units_pi",
+    "forecast_value": 178642,
+    "actual_value": 173333
+  },
+  {
+    "week_start_date": "2026-03-22",
+    "kpi": "entregas_sge",
+    "forecast_value": 1047,
+    "actual_value": 1009
+  },
+  {
+    "week_start_date": "2026-03-22",
+    "kpi": "entregas_sgp",
+    "forecast_value": 865,
+    "actual_value": 854
+  },
+  {
+    "week_start_date": "2026-03-22",
+    "kpi": "recogidas_ege",
+    "forecast_value": 674,
+    "actual_value": 676
+  },
+  {
+    "week_start_date": "2026-03-22",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 15158,
+    "actual_value": 15154
+  },
+  {
+    "week_start_date": "2026-03-22",
+    "kpi": "picking_units_pi",
+    "forecast_value": 230337,
+    "actual_value": 225954
+  },
+  {
+    "week_start_date": "2026-03-29",
+    "kpi": "entregas_sge",
+    "forecast_value": 1057,
+    "actual_value": 1047
+  },
+  {
+    "week_start_date": "2026-03-29",
+    "kpi": "entregas_sgp",
+    "forecast_value": 870,
+    "actual_value": 837
+  },
+  {
+    "week_start_date": "2026-03-29",
+    "kpi": "recogidas_ege",
+    "forecast_value": 683,
+    "actual_value": 642
+  },
+  {
+    "week_start_date": "2026-03-29",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14169,
+    "actual_value": 13220
+  },
+  {
+    "week_start_date": "2026-03-29",
+    "kpi": "picking_units_pi",
+    "forecast_value": 209108,
+    "actual_value": 197575
+  },
+  {
+    "week_start_date": "2026-04-05",
+    "kpi": "entregas_sge",
+    "forecast_value": 1122,
+    "actual_value": 1049
+  },
+  {
+    "week_start_date": "2026-04-05",
+    "kpi": "entregas_sgp",
+    "forecast_value": 875,
+    "actual_value": 837
+  },
+  {
+    "week_start_date": "2026-04-05",
+    "kpi": "recogidas_ege",
+    "forecast_value": 650,
+    "actual_value": 638
+  },
+  {
+    "week_start_date": "2026-04-05",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13319,
+    "actual_value": 13359
+  },
+  {
+    "week_start_date": "2026-04-05",
+    "kpi": "picking_units_pi",
+    "forecast_value": 190077,
+    "actual_value": 191216
+  },
+  {
+    "week_start_date": "2026-04-12",
+    "kpi": "entregas_sge",
+    "forecast_value": 998,
+    "actual_value": 1004
+  },
+  {
+    "week_start_date": "2026-04-12",
+    "kpi": "entregas_sgp",
+    "forecast_value": 769,
+    "actual_value": 770
+  },
+  {
+    "week_start_date": "2026-04-12",
+    "kpi": "recogidas_ege",
+    "forecast_value": 557,
+    "actual_value": 545
+  },
+  {
+    "week_start_date": "2026-04-12",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 12338,
+    "actual_value": 11728
+  },
+  {
+    "week_start_date": "2026-04-12",
+    "kpi": "picking_units_pi",
+    "forecast_value": 180191,
+    "actual_value": 168322
+  },
+  {
+    "week_start_date": "2026-04-19",
+    "kpi": "entregas_sge",
+    "forecast_value": 912,
+    "actual_value": 859
+  },
+  {
+    "week_start_date": "2026-04-19",
+    "kpi": "entregas_sgp",
+    "forecast_value": 746,
+    "actual_value": 695
+  },
+  {
+    "week_start_date": "2026-04-19",
+    "kpi": "recogidas_ege",
+    "forecast_value": 576,
+    "actual_value": 546
+  },
+  {
+    "week_start_date": "2026-04-19",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13067,
+    "actual_value": 12689
+  },
+  {
+    "week_start_date": "2026-04-19",
+    "kpi": "picking_units_pi",
+    "forecast_value": 198448,
+    "actual_value": 197683
+  },
+  {
+    "week_start_date": "2026-04-26",
+    "kpi": "entregas_sge",
+    "forecast_value": 1026,
+    "actual_value": 1008
+  },
+  {
+    "week_start_date": "2026-04-26",
+    "kpi": "entregas_sgp",
+    "forecast_value": 853,
+    "actual_value": 856
+  },
+  {
+    "week_start_date": "2026-04-26",
+    "kpi": "recogidas_ege",
+    "forecast_value": 675,
+    "actual_value": 679
+  },
+  {
+    "week_start_date": "2026-04-26",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14287,
+    "actual_value": 14134
+  },
+  {
+    "week_start_date": "2026-04-26",
+    "kpi": "picking_units_pi",
+    "forecast_value": 213398,
+    "actual_value": 205458
+  },
+  {
+    "week_start_date": "2026-05-03",
+    "kpi": "entregas_sge",
+    "forecast_value": 1142,
+    "actual_value": 1116
+  },
+  {
+    "week_start_date": "2026-05-03",
+    "kpi": "entregas_sgp",
+    "forecast_value": 904,
+    "actual_value": 859
+  },
+  {
+    "week_start_date": "2026-05-03",
+    "kpi": "recogidas_ege",
+    "forecast_value": 683,
+    "actual_value": 639
+  },
+  {
+    "week_start_date": "2026-05-03",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13890,
+    "actual_value": 13006
+  },
+  {
+    "week_start_date": "2026-05-03",
+    "kpi": "picking_units_pi",
+    "forecast_value": 199326,
+    "actual_value": 190526
+  },
+  {
+    "week_start_date": "2026-05-10",
+    "kpi": "entregas_sge",
+    "forecast_value": 1058,
+    "actual_value": 998
+  },
+  {
+    "week_start_date": "2026-05-10",
+    "kpi": "entregas_sgp",
+    "forecast_value": 813,
+    "actual_value": 786
+  },
+  {
+    "week_start_date": "2026-05-10",
+    "kpi": "recogidas_ege",
+    "forecast_value": 587,
+    "actual_value": 582
+  },
+  {
+    "week_start_date": "2026-05-10",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 12657,
+    "actual_value": 12745
+  },
+  {
+    "week_start_date": "2026-05-10",
+    "kpi": "picking_units_pi",
+    "forecast_value": 182496,
+    "actual_value": 182409
+  },
+  {
+    "week_start_date": "2026-05-17",
+    "kpi": "entregas_sge",
+    "forecast_value": 930,
+    "actual_value": 936
+  },
+  {
+    "week_start_date": "2026-05-17",
+    "kpi": "entregas_sgp",
+    "forecast_value": 746,
+    "actual_value": 739
+  },
+  {
+    "week_start_date": "2026-05-17",
+    "kpi": "recogidas_ege",
+    "forecast_value": 562,
+    "actual_value": 542
+  },
+  {
+    "week_start_date": "2026-05-17",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 12878,
+    "actual_value": 12103
+  },
+  {
+    "week_start_date": "2026-05-17",
+    "kpi": "picking_units_pi",
+    "forecast_value": 194301,
+    "actual_value": 181319
+  },
+  {
+    "week_start_date": "2026-05-24",
+    "kpi": "entregas_sge",
+    "forecast_value": 993,
+    "actual_value": 928
+  },
+  {
+    "week_start_date": "2026-05-24",
+    "kpi": "entregas_sgp",
+    "forecast_value": 829,
+    "actual_value": 777
+  },
+  {
+    "week_start_date": "2026-05-24",
+    "kpi": "recogidas_ege",
+    "forecast_value": 658,
+    "actual_value": 630
+  },
+  {
+    "week_start_date": "2026-05-24",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14245,
+    "actual_value": 14019
+  },
+  {
+    "week_start_date": "2026-05-24",
+    "kpi": "picking_units_pi",
+    "forecast_value": 214887,
+    "actual_value": 215680
+  },
+  {
+    "week_start_date": "2026-05-31",
+    "kpi": "entregas_sge",
+    "forecast_value": 1141,
+    "actual_value": 1135
+  },
+  {
+    "week_start_date": "2026-05-31",
+    "kpi": "entregas_sgp",
+    "forecast_value": 919,
+    "actual_value": 925
+  },
+  {
+    "week_start_date": "2026-05-31",
+    "kpi": "recogidas_ege",
+    "forecast_value": 707,
+    "actual_value": 708
+  },
+  {
+    "week_start_date": "2026-05-31",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14388,
+    "actual_value": 14065
+  },
+  {
+    "week_start_date": "2026-05-31",
+    "kpi": "picking_units_pi",
+    "forecast_value": 208492,
+    "actual_value": 198247
+  },
+  {
+    "week_start_date": "2026-06-07",
+    "kpi": "entregas_sge",
+    "forecast_value": 1116,
+    "actual_value": 1077
+  },
+  {
+    "week_start_date": "2026-06-07",
+    "kpi": "entregas_sgp",
+    "forecast_value": 859,
+    "actual_value": 810
+  },
+  {
+    "week_start_date": "2026-06-07",
+    "kpi": "recogidas_ege",
+    "forecast_value": 623,
+    "actual_value": 580
+  },
+  {
+    "week_start_date": "2026-06-07",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13120,
+    "actual_value": 12390
+  },
+  {
+    "week_start_date": "2026-06-07",
+    "kpi": "picking_units_pi",
+    "forecast_value": 187600,
+    "actual_value": 181917
+  },
+  {
+    "week_start_date": "2026-06-14",
+    "kpi": "entregas_sge",
+    "forecast_value": 965,
+    "actual_value": 922
+  },
+  {
+    "week_start_date": "2026-06-14",
+    "kpi": "entregas_sgp",
+    "forecast_value": 762,
+    "actual_value": 748
+  },
+  {
+    "week_start_date": "2026-06-14",
+    "kpi": "recogidas_ege",
+    "forecast_value": 562,
+    "actual_value": 563
+  },
+  {
+    "week_start_date": "2026-06-14",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 12790,
+    "actual_value": 12862
+  },
+  {
+    "week_start_date": "2026-06-14",
+    "kpi": "picking_units_pi",
+    "forecast_value": 190826,
+    "actual_value": 188615
+  },
+  {
+    "week_start_date": "2026-06-21",
+    "kpi": "entregas_sge",
+    "forecast_value": 967,
+    "actual_value": 967
+  },
+  {
+    "week_start_date": "2026-06-21",
+    "kpi": "entregas_sgp",
+    "forecast_value": 806,
+    "actual_value": 787
+  },
+  {
+    "week_start_date": "2026-06-21",
+    "kpi": "recogidas_ege",
+    "forecast_value": 635,
+    "actual_value": 603
+  },
+  {
+    "week_start_date": "2026-06-21",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14076,
+    "actual_value": 13147
+  },
+  {
+    "week_start_date": "2026-06-21",
+    "kpi": "picking_units_pi",
+    "forecast_value": 213698,
+    "actual_value": 200281
+  },
+  {
+    "week_start_date": "2026-06-28",
+    "kpi": "entregas_sge",
+    "forecast_value": 1124,
+    "actual_value": 1049
+  },
+  {
+    "week_start_date": "2026-06-28",
+    "kpi": "entregas_sgp",
+    "forecast_value": 918,
+    "actual_value": 867
+  },
+  {
+    "week_start_date": "2026-06-28",
+    "kpi": "recogidas_ege",
+    "forecast_value": 717,
+    "actual_value": 695
+  },
+  {
+    "week_start_date": "2026-06-28",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14759,
+    "actual_value": 14685
+  },
+  {
+    "week_start_date": "2026-06-28",
+    "kpi": "picking_units_pi",
+    "forecast_value": 216419,
+    "actual_value": 217954
+  },
+  {
+    "week_start_date": "2026-07-05",
+    "kpi": "entregas_sge",
+    "forecast_value": 1162,
+    "actual_value": 1167
+  },
+  {
+    "week_start_date": "2026-07-05",
+    "kpi": "entregas_sgp",
+    "forecast_value": 900,
+    "actual_value": 906
+  },
+  {
+    "week_start_date": "2026-07-05",
+    "kpi": "recogidas_ege",
+    "forecast_value": 663,
+    "actual_value": 658
+  },
+  {
+    "week_start_date": "2026-07-05",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13686,
+    "actual_value": 13195
+  },
+  {
+    "week_start_date": "2026-07-05",
+    "kpi": "picking_units_pi",
+    "forecast_value": 195140,
+    "actual_value": 183565
+  },
+  {
+    "week_start_date": "2026-07-12",
+    "kpi": "entregas_sge",
+    "forecast_value": 1018,
+    "actual_value": 969
+  },
+  {
+    "week_start_date": "2026-07-12",
+    "kpi": "entregas_sgp",
+    "forecast_value": 790,
+    "actual_value": 739
+  },
+  {
+    "week_start_date": "2026-07-12",
+    "kpi": "recogidas_ege",
+    "forecast_value": 576,
+    "actual_value": 541
+  },
+  {
+    "week_start_date": "2026-07-12",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 12856,
+    "actual_value": 12298
+  },
+  {
+    "week_start_date": "2026-07-12",
+    "kpi": "picking_units_pi",
+    "forecast_value": 189109,
+    "actual_value": 186135
+  },
+  {
+    "week_start_date": "2026-07-19",
+    "kpi": "entregas_sge",
+    "forecast_value": 956,
+    "actual_value": 926
+  },
+  {
+    "week_start_date": "2026-07-19",
+    "kpi": "entregas_sgp",
+    "forecast_value": 787,
+    "actual_value": 783
+  },
+  {
+    "week_start_date": "2026-07-19",
+    "kpi": "recogidas_ege",
+    "forecast_value": 612,
+    "actual_value": 616
+  },
+  {
+    "week_start_date": "2026-07-19",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13840,
+    "actual_value": 13827
+  },
+  {
+    "week_start_date": "2026-07-19",
+    "kpi": "picking_units_pi",
+    "forecast_value": 210429,
+    "actual_value": 205254
+  },
+  {
+    "week_start_date": "2026-07-26",
+    "kpi": "entregas_sge",
+    "forecast_value": 1092,
+    "actual_value": 1080
+  },
+  {
+    "week_start_date": "2026-07-26",
+    "kpi": "entregas_sgp",
+    "forecast_value": 905,
+    "actual_value": 871
+  },
+  {
+    "week_start_date": "2026-07-26",
+    "kpi": "recogidas_ege",
+    "forecast_value": 714,
+    "actual_value": 672
+  },
+  {
+    "week_start_date": "2026-07-26",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14960,
+    "actual_value": 13958
+  },
+  {
+    "week_start_date": "2026-07-26",
+    "kpi": "picking_units_pi",
+    "forecast_value": 222142,
+    "actual_value": 209924
+  },
+  {
+    "week_start_date": "2026-08-02",
+    "kpi": "entregas_sge",
+    "forecast_value": 1191,
+    "actual_value": 1116
+  },
+  {
+    "week_start_date": "2026-08-02",
+    "kpi": "entregas_sgp",
+    "forecast_value": 935,
+    "actual_value": 894
+  },
+  {
+    "week_start_date": "2026-08-02",
+    "kpi": "recogidas_ege",
+    "forecast_value": 701,
+    "actual_value": 688
+  },
+  {
+    "week_start_date": "2026-08-02",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14285,
+    "actual_value": 14327
+  },
+  {
+    "week_start_date": "2026-08-02",
+    "kpi": "picking_units_pi",
+    "forecast_value": 204309,
+    "actual_value": 205541
+  },
+  {
+    "week_start_date": "2026-08-09",
+    "kpi": "entregas_sge",
+    "forecast_value": 1078,
+    "actual_value": 1084
+  },
+  {
+    "week_start_date": "2026-08-09",
+    "kpi": "entregas_sgp",
+    "forecast_value": 830,
+    "actual_value": 831
+  },
+  {
+    "week_start_date": "2026-08-09",
+    "kpi": "recogidas_ege",
+    "forecast_value": 599,
+    "actual_value": 587
+  },
+  {
+    "week_start_date": "2026-08-09",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13095,
+    "actual_value": 12451
+  },
+  {
+    "week_start_date": "2026-08-09",
+    "kpi": "picking_units_pi",
+    "forecast_value": 189955,
+    "actual_value": 177453
+  },
+  {
+    "week_start_date": "2026-08-16",
+    "kpi": "entregas_sge",
+    "forecast_value": 964,
+    "actual_value": 907
+  },
+  {
+    "week_start_date": "2026-08-16",
+    "kpi": "entregas_sgp",
+    "forecast_value": 781,
+    "actual_value": 729
+  },
+  {
+    "week_start_date": "2026-08-16",
+    "kpi": "recogidas_ege",
+    "forecast_value": 595,
+    "actual_value": 562
+  },
+  {
+    "week_start_date": "2026-08-16",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13604,
+    "actual_value": 13209
+  },
+  {
+    "week_start_date": "2026-08-16",
+    "kpi": "picking_units_pi",
+    "forecast_value": 206058,
+    "actual_value": 205265
+  },
+  {
+    "week_start_date": "2026-08-23",
+    "kpi": "entregas_sge",
+    "forecast_value": 1057,
+    "actual_value": 1040
+  },
+  {
+    "week_start_date": "2026-08-23",
+    "kpi": "entregas_sgp",
+    "forecast_value": 884,
+    "actual_value": 887
+  },
+  {
+    "week_start_date": "2026-08-23",
+    "kpi": "recogidas_ege",
+    "forecast_value": 702,
+    "actual_value": 707
+  },
+  {
+    "week_start_date": "2026-08-23",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14987,
+    "actual_value": 14825
+  },
+  {
+    "week_start_date": "2026-08-23",
+    "kpi": "picking_units_pi",
+    "forecast_value": 225049,
+    "actual_value": 216627
+  },
+  {
+    "week_start_date": "2026-08-30",
+    "kpi": "entregas_sge",
+    "forecast_value": 1200,
+    "actual_value": 1172
+  },
+  {
+    "week_start_date": "2026-08-30",
+    "kpi": "entregas_sgp",
+    "forecast_value": 957,
+    "actual_value": 911
+  },
+  {
+    "week_start_date": "2026-08-30",
+    "kpi": "recogidas_ege",
+    "forecast_value": 730,
+    "actual_value": 682
+  },
+  {
+    "week_start_date": "2026-08-30",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14846,
+    "actual_value": 13900
+  },
+  {
+    "week_start_date": "2026-08-30",
+    "kpi": "picking_units_pi",
+    "forecast_value": 214000,
+    "actual_value": 204565
+  },
+  {
+    "week_start_date": "2026-09-06",
+    "kpi": "entregas_sge",
+    "forecast_value": 1141,
+    "actual_value": 1076
+  },
+  {
+    "week_start_date": "2026-09-06",
+    "kpi": "entregas_sgp",
+    "forecast_value": 877,
+    "actual_value": 849
+  },
+  {
+    "week_start_date": "2026-09-06",
+    "kpi": "recogidas_ege",
+    "forecast_value": 634,
+    "actual_value": 630
+  },
+  {
+    "week_start_date": "2026-09-06",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13503,
+    "actual_value": 13596
+  },
+  {
+    "week_start_date": "2026-09-06",
+    "kpi": "picking_units_pi",
+    "forecast_value": 193740,
+    "actual_value": 193679
+  },
+  {
+    "week_start_date": "2026-09-13",
+    "kpi": "entregas_sge",
+    "forecast_value": 991,
+    "actual_value": 998
+  },
+  {
+    "week_start_date": "2026-09-13",
+    "kpi": "entregas_sgp",
+    "forecast_value": 789,
+    "actual_value": 781
+  },
+  {
+    "week_start_date": "2026-09-13",
+    "kpi": "recogidas_ege",
+    "forecast_value": 589,
+    "actual_value": 568
+  },
+  {
+    "week_start_date": "2026-09-13",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13443,
+    "actual_value": 12636
+  },
+  {
+    "week_start_date": "2026-09-13",
+    "kpi": "picking_units_pi",
+    "forecast_value": 201781,
+    "actual_value": 188298
+  },
+  {
+    "week_start_date": "2026-09-20",
+    "kpi": "entregas_sge",
+    "forecast_value": 1026,
+    "actual_value": 959
+  },
+  {
+    "week_start_date": "2026-09-20",
+    "kpi": "entregas_sgp",
+    "forecast_value": 856,
+    "actual_value": 802
+  },
+  {
+    "week_start_date": "2026-09-20",
+    "kpi": "recogidas_ege",
+    "forecast_value": 678,
+    "actual_value": 649
+  },
+  {
+    "week_start_date": "2026-09-20",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14862,
+    "actual_value": 14628
+  },
+  {
+    "week_start_date": "2026-09-20",
+    "kpi": "picking_units_pi",
+    "forecast_value": 225021,
+    "actual_value": 225869
+  },
+  {
+    "week_start_date": "2026-09-27",
+    "kpi": "entregas_sge",
+    "forecast_value": 1190,
+    "actual_value": 1184
+  },
+  {
+    "week_start_date": "2026-09-27",
+    "kpi": "entregas_sgp",
+    "forecast_value": 964,
+    "actual_value": 970
+  },
+  {
+    "week_start_date": "2026-09-27",
+    "kpi": "recogidas_ege",
+    "forecast_value": 748,
+    "actual_value": 749
+  },
+  {
+    "week_start_date": "2026-09-27",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 15299,
+    "actual_value": 14952
+  },
+  {
+    "week_start_date": "2026-09-27",
+    "kpi": "picking_units_pi",
+    "forecast_value": 222975,
+    "actual_value": 211992
+  },
+  {
+    "week_start_date": "2026-10-04",
+    "kpi": "entregas_sge",
+    "forecast_value": 1196,
+    "actual_value": 1155
+  },
+  {
+    "week_start_date": "2026-10-04",
+    "kpi": "entregas_sgp",
+    "forecast_value": 922,
+    "actual_value": 867
+  },
+  {
+    "week_start_date": "2026-10-04",
+    "kpi": "recogidas_ege",
+    "forecast_value": 674,
+    "actual_value": 630
+  },
+  {
+    "week_start_date": "2026-10-04",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14040,
+    "actual_value": 13256
+  },
+  {
+    "week_start_date": "2026-10-04",
+    "kpi": "picking_units_pi",
+    "forecast_value": 200331,
+    "actual_value": 194227
+  },
+  {
+    "week_start_date": "2026-10-11",
+    "kpi": "entregas_sge",
+    "forecast_value": 1039,
+    "actual_value": 993
+  },
+  {
+    "week_start_date": "2026-10-11",
+    "kpi": "entregas_sgp",
+    "forecast_value": 810,
+    "actual_value": 794
+  },
+  {
+    "week_start_date": "2026-10-11",
+    "kpi": "recogidas_ege",
+    "forecast_value": 594,
+    "actual_value": 594
+  },
+  {
+    "week_start_date": "2026-10-11",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13418,
+    "actual_value": 13494
+  },
+  {
+    "week_start_date": "2026-10-11",
+    "kpi": "picking_units_pi",
+    "forecast_value": 198811,
+    "actual_value": 196536
+  },
+  {
+    "week_start_date": "2026-10-18",
+    "kpi": "entregas_sge",
+    "forecast_value": 845,
+    "actual_value": 851
+  },
+  {
+    "week_start_date": "2026-10-18",
+    "kpi": "entregas_sgp",
+    "forecast_value": 701,
+    "actual_value": 690
+  },
+  {
+    "week_start_date": "2026-10-18",
+    "kpi": "recogidas_ege",
+    "forecast_value": 548,
+    "actual_value": 523
+  },
+  {
+    "week_start_date": "2026-10-18",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 12337,
+    "actual_value": 11515
+  },
+  {
+    "week_start_date": "2026-10-18",
+    "kpi": "picking_units_pi",
+    "forecast_value": 187783,
+    "actual_value": 174801
+  },
+  {
+    "week_start_date": "2026-10-25",
+    "kpi": "entregas_sge",
+    "forecast_value": 1137,
+    "actual_value": 1062
+  },
+  {
+    "week_start_date": "2026-10-25",
+    "kpi": "entregas_sgp",
+    "forecast_value": 941,
+    "actual_value": 880
+  },
+  {
+    "week_start_date": "2026-10-25",
+    "kpi": "recogidas_ege",
+    "forecast_value": 743,
+    "actual_value": 711
+  },
+  {
+    "week_start_date": "2026-10-25",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 15573,
+    "actual_value": 15312
+  },
+  {
+    "week_start_date": "2026-10-25",
+    "kpi": "picking_units_pi",
+    "forecast_value": 231297,
+    "actual_value": 232154
+  },
+  {
+    "week_start_date": "2026-11-01",
+    "kpi": "entregas_sge",
+    "forecast_value": 1239,
+    "actual_value": 1232
+  },
+  {
+    "week_start_date": "2026-11-01",
+    "kpi": "entregas_sgp",
+    "forecast_value": 974,
+    "actual_value": 982
+  },
+  {
+    "week_start_date": "2026-11-01",
+    "kpi": "recogidas_ege",
+    "forecast_value": 730,
+    "actual_value": 732
+  },
+  {
+    "week_start_date": "2026-11-01",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14875,
+    "actual_value": 14556
+  },
+  {
+    "week_start_date": "2026-11-01",
+    "kpi": "picking_units_pi",
+    "forecast_value": 212761,
+    "actual_value": 202379
+  },
+  {
+    "week_start_date": "2026-11-08",
+    "kpi": "entregas_sge",
+    "forecast_value": 1124,
+    "actual_value": 1086
+  },
+  {
+    "week_start_date": "2026-11-08",
+    "kpi": "entregas_sgp",
+    "forecast_value": 863,
+    "actual_value": 813
+  },
+  {
+    "week_start_date": "2026-11-08",
+    "kpi": "recogidas_ege",
+    "forecast_value": 623,
+    "actual_value": 580
+  },
+  {
+    "week_start_date": "2026-11-08",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13624,
+    "actual_value": 12858
+  },
+  {
+    "week_start_date": "2026-11-08",
+    "kpi": "picking_units_pi",
+    "forecast_value": 197550,
+    "actual_value": 191584
+  },
+  {
+    "week_start_date": "2026-11-15",
+    "kpi": "entregas_sge",
+    "forecast_value": 1001,
+    "actual_value": 957
+  },
+  {
+    "week_start_date": "2026-11-15",
+    "kpi": "entregas_sgp",
+    "forecast_value": 814,
+    "actual_value": 799
+  },
+  {
+    "week_start_date": "2026-11-15",
+    "kpi": "recogidas_ege",
+    "forecast_value": 618,
+    "actual_value": 619
+  },
+  {
+    "week_start_date": "2026-11-15",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14140,
+    "actual_value": 14228
+  },
+  {
+    "week_start_date": "2026-11-15",
+    "kpi": "picking_units_pi",
+    "forecast_value": 214178,
+    "actual_value": 211852
+  },
+  {
+    "week_start_date": "2026-11-22",
+    "kpi": "entregas_sge",
+    "forecast_value": 1100,
+    "actual_value": 1100
+  },
+  {
+    "week_start_date": "2026-11-22",
+    "kpi": "entregas_sgp",
+    "forecast_value": 919,
+    "actual_value": 896
+  },
+  {
+    "week_start_date": "2026-11-22",
+    "kpi": "recogidas_ege",
+    "forecast_value": 729,
+    "actual_value": 693
+  },
+  {
+    "week_start_date": "2026-11-22",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 15587,
+    "actual_value": 14553
+  },
+  {
+    "week_start_date": "2026-11-22",
+    "kpi": "picking_units_pi",
+    "forecast_value": 234138,
+    "actual_value": 219174
+  },
+  {
+    "week_start_date": "2026-11-29",
+    "kpi": "entregas_sge",
+    "forecast_value": 1249,
+    "actual_value": 1164
+  },
+  {
+    "week_start_date": "2026-11-29",
+    "kpi": "entregas_sgp",
+    "forecast_value": 995,
+    "actual_value": 939
+  },
+  {
+    "week_start_date": "2026-11-29",
+    "kpi": "recogidas_ege",
+    "forecast_value": 760,
+    "actual_value": 736
+  },
+  {
+    "week_start_date": "2026-11-29",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 15450,
+    "actual_value": 15365
+  },
+  {
+    "week_start_date": "2026-11-29",
+    "kpi": "picking_units_pi",
+    "forecast_value": 222763,
+    "actual_value": 224451
+  },
+  {
+    "week_start_date": "2026-12-06",
+    "kpi": "entregas_sge",
+    "forecast_value": 1188,
+    "actual_value": 1191
+  },
+  {
+    "week_start_date": "2026-12-06",
+    "kpi": "entregas_sgp",
+    "forecast_value": 911,
+    "actual_value": 918
+  },
+  {
+    "week_start_date": "2026-12-06",
+    "kpi": "recogidas_ege",
+    "forecast_value": 661,
+    "actual_value": 657
+  },
+  {
+    "week_start_date": "2026-12-06",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 14045,
+    "actual_value": 13545
+  },
+  {
+    "week_start_date": "2026-12-06",
+    "kpi": "picking_units_pi",
+    "forecast_value": 201468,
+    "actual_value": 189437
+  },
+  {
+    "week_start_date": "2026-12-13",
+    "kpi": "entregas_sge",
+    "forecast_value": 1031,
+    "actual_value": 981
+  },
+  {
+    "week_start_date": "2026-12-13",
+    "kpi": "entregas_sgp",
+    "forecast_value": 819,
+    "actual_value": 764
+  },
+  {
+    "week_start_date": "2026-12-13",
+    "kpi": "recogidas_ege",
+    "forecast_value": 611,
+    "actual_value": 572
+  },
+  {
+    "week_start_date": "2026-12-13",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 13968,
+    "actual_value": 13358
+  },
+  {
+    "week_start_date": "2026-12-13",
+    "kpi": "picking_units_pi",
+    "forecast_value": 209617,
+    "actual_value": 206337
+  },
+  {
+    "week_start_date": "2026-12-20",
+    "kpi": "entregas_sge",
+    "forecast_value": 1066,
+    "actual_value": 1034
+  },
+  {
+    "week_start_date": "2026-12-20",
+    "kpi": "entregas_sgp",
+    "forecast_value": 889,
+    "actual_value": 885
+  },
+  {
+    "week_start_date": "2026-12-20",
+    "kpi": "recogidas_ege",
+    "forecast_value": 705,
+    "actual_value": 711
+  },
+  {
+    "week_start_date": "2026-12-20",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 15446,
+    "actual_value": 15447
+  },
+  {
+    "week_start_date": "2026-12-20",
+    "kpi": "picking_units_pi",
+    "forecast_value": 233916,
+    "actual_value": 228442
+  },
+  {
+    "week_start_date": "2026-12-27",
+    "kpi": "entregas_sge",
+    "forecast_value": 725,
+    "actual_value": 732
+  },
+  {
+    "week_start_date": "2026-12-27",
+    "kpi": "entregas_sgp",
+    "forecast_value": 595,
+    "actual_value": 586
+  },
+  {
+    "week_start_date": "2026-12-27",
+    "kpi": "recogidas_ege",
+    "forecast_value": 467,
+    "actual_value": 444
+  },
+  {
+    "week_start_date": "2026-12-27",
+    "kpi": "picking_lines_pi",
+    "forecast_value": 9617,
+    "actual_value": 8927
+  },
+  {
+    "week_start_date": "2026-12-27",
+    "kpi": "picking_units_pi",
+    "forecast_value": 141396,
+    "actual_value": 130995
+  }
+]

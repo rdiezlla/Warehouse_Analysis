@@ -1,0 +1,137 @@
+[
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "day",
+    "kpi": "entregas_sge",
+    "forecast_total_periodo": 145,
+    "actual_acumulado_hasta_hoy": 145,
+    "actual_2024_acumulado": 138,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "day",
+    "kpi": "entregas_sgp",
+    "forecast_total_periodo": 116,
+    "actual_acumulado_hasta_hoy": 116,
+    "actual_2024_acumulado": 110,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "day",
+    "kpi": "recogidas_ege",
+    "forecast_total_periodo": 88,
+    "actual_acumulado_hasta_hoy": 88,
+    "actual_2024_acumulado": 84,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "day",
+    "kpi": "picking_lines_pi",
+    "forecast_total_periodo": 1890,
+    "actual_acumulado_hasta_hoy": 1890,
+    "actual_2024_acumulado": 1796,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "day",
+    "kpi": "picking_units_pi",
+    "forecast_total_periodo": 27850,
+    "actual_acumulado_hasta_hoy": 27850,
+    "actual_2024_acumulado": 26458,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "week",
+    "kpi": "entregas_sge",
+    "forecast_total_periodo": 1015,
+    "actual_acumulado_hasta_hoy": 972,
+    "actual_2024_acumulado": 899,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "week",
+    "kpi": "entregas_sgp",
+    "forecast_total_periodo": 812,
+    "actual_acumulado_hasta_hoy": 777,
+    "actual_2024_acumulado": 719,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "week",
+    "kpi": "recogidas_ege",
+    "forecast_total_periodo": 616,
+    "actual_acumulado_hasta_hoy": 590,
+    "actual_2024_acumulado": 546,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "week",
+    "kpi": "picking_lines_pi",
+    "forecast_total_periodo": 13230,
+    "actual_acumulado_hasta_hoy": 12663,
+    "actual_2024_acumulado": 11718,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "week",
+    "kpi": "picking_units_pi",
+    "forecast_total_periodo": 194950,
+    "actual_acumulado_hasta_hoy": 186595,
+    "actual_2024_acumulado": 172670,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "month",
+    "kpi": "entregas_sge",
+    "forecast_total_periodo": 4350,
+    "actual_acumulado_hasta_hoy": 3988,
+    "actual_2024_acumulado": 3683,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "month",
+    "kpi": "entregas_sgp",
+    "forecast_total_periodo": 3480,
+    "actual_acumulado_hasta_hoy": 3190,
+    "actual_2024_acumulado": 2946,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "month",
+    "kpi": "recogidas_ege",
+    "forecast_total_periodo": 2640,
+    "actual_acumulado_hasta_hoy": 2420,
+    "actual_2024_acumulado": 2235,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "month",
+    "kpi": "picking_lines_pi",
+    "forecast_total_periodo": 56700,
+    "actual_acumulado_hasta_hoy": 51975,
+    "actual_2024_acumulado": 48006,
+    "diff_pct_vs_2024_acumulado": 0.05
+  },
+  {
+    "fecha_corte": "2026-12-31",
+    "tipo_periodo": "month",
+    "kpi": "picking_units_pi",
+    "forecast_total_periodo": 835500,
+    "actual_acumulado_hasta_hoy": 765875,
+    "actual_2024_acumulado": 707390,
+    "diff_pct_vs_2024_acumulado": 0.05
+  }
+]

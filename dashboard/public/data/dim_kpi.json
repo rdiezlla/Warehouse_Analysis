@@ -1,0 +1,37 @@
+[
+  {
+    "kpi": "entregas_sge",
+    "nombre_negocio": "Entregas SGE",
+    "unidad": "servicios",
+    "nivel_uso_operativo": "operativo",
+    "orden_visual": 1
+  },
+  {
+    "kpi": "entregas_sgp",
+    "nombre_negocio": "Entregas SGP",
+    "unidad": "servicios",
+    "nivel_uso_operativo": "operativo",
+    "orden_visual": 2
+  },
+  {
+    "kpi": "recogidas_ege",
+    "nombre_negocio": "Recogidas EGE",
+    "unidad": "servicios",
+    "nivel_uso_operativo": "cautela",
+    "orden_visual": 3
+  },
+  {
+    "kpi": "picking_lines_pi",
+    "nombre_negocio": "Picking líneas PI",
+    "unidad": "lineas",
+    "nivel_uso_operativo": "operativo",
+    "orden_visual": 4
+  },
+  {
+    "kpi": "picking_units_pi",
+    "nombre_negocio": "Picking unidades PI",
+    "unidad": "unidades",
+    "nivel_uso_operativo": "operativo",
+    "orden_visual": 5
+  }
+]
