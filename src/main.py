@@ -32,8 +32,9 @@ from src.modeling.nowcasting import apply_nowcasting, build_cartera_maturity_cur
 from src.modeling.train_picking_models import train_picking_models
 from src.modeling.train_service_models import train_service_models
 from src.modeling.transformer_service_to_picking import apply_transformer, compare_direct_vs_transformer_last_fold, fit_transformer
-from src.paths import BACKTESTS_DIR, CONFIG_DIR, FEATURES_DIR, FORECASTS_DIR, INTERIM_DIR, MODELS_DIR, PLOTS_DIR, PROCESSED_DIR, QA_DIR, REPORTS_DIR
+from src.paths import BACKTESTS_DIR, CONFIG_DIR, CONSUMPTION_DIR, FEATURES_DIR, FORECASTS_DIR, INTERIM_DIR, MODELS_DIR, PLOTS_DIR, PROCESSED_DIR, QA_DIR, REPORTS_DIR
 from src.reporting.explainability import export_model_explainability
+from src.reporting.consumption_layer import build_consumption_layer
 from src.reporting.forecast_calibration import generate_calibration_artifacts
 from src.reporting.plot_backtests import plot_backtest_errors
 from src.reporting.plot_forecasts import plot_history_and_forecast, plot_transformer_curve
@@ -743,10 +744,25 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
     return daily_output, weekly_output
 
 
+def run_consumption(settings: dict, aliases: dict, regex_rules: dict) -> dict:
+    ensure_dirs(CONSUMPTION_DIR)
+    required = [
+        FORECASTS_DIR / "daily_forecasts.csv",
+        FORECASTS_DIR / "weekly_forecasts.csv",
+        FORECASTS_DIR / "forecast_vs_actual_daily.csv",
+        FORECASTS_DIR / "forecast_vs_actual_weekly.csv",
+    ]
+    if not all(path.exists() for path in required):
+        run_forecast(settings, aliases, regex_rules)
+    context = ensure_processed_context(settings, aliases, regex_rules)
+    artifacts = build_consumption_layer(context)
+    return artifacts.__dict__
+
+
 def main(stage: str) -> None:
     settings, aliases, regex_rules = load_config()
     setup_logging(settings["logging"]["level"])
-    ensure_dirs(INTERIM_DIR, PROCESSED_DIR, FEATURES_DIR, MODELS_DIR, BACKTESTS_DIR, FORECASTS_DIR, QA_DIR, REPORTS_DIR, PLOTS_DIR)
+    ensure_dirs(INTERIM_DIR, PROCESSED_DIR, FEATURES_DIR, MODELS_DIR, BACKTESTS_DIR, FORECASTS_DIR, CONSUMPTION_DIR, QA_DIR, REPORTS_DIR, PLOTS_DIR)
 
     if stage == "qa":
         run_qa(settings, aliases, regex_rules)
@@ -758,18 +774,21 @@ def main(stage: str) -> None:
         run_backtest(settings, aliases, regex_rules)
     elif stage == "forecast":
         run_forecast(settings, aliases, regex_rules)
+    elif stage == "consumption":
+        run_consumption(settings, aliases, regex_rules)
     elif stage == "all":
         run_qa(settings, aliases, regex_rules)
         run_features(settings, aliases, regex_rules)
         run_train(settings, aliases, regex_rules)
         run_backtest(settings, aliases, regex_rules)
         run_forecast(settings, aliases, regex_rules)
+        run_consumption(settings, aliases, regex_rules)
     else:
         raise ValueError(f"Unsupported stage: {stage}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Warehouse operational forecasting pipeline")
-    parser.add_argument("--stage", default="all", choices=["qa", "features", "train", "backtest", "forecast", "all"])
+    parser.add_argument("--stage", default="all", choices=["qa", "features", "train", "backtest", "forecast", "consumption", "all"])
     args = parser.parse_args()
     main(args.stage)
