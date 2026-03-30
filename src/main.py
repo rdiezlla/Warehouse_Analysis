@@ -20,6 +20,7 @@ from src.features.transformer_features import build_transformer_training_table
 from src.logging_config import setup_logging
 from src.modeling.backtesting import backtest_dataset
 from src.modeling.baselines import median_by_day_of_week, moving_average, seasonal_naive
+from src.modeling.calibration import apply_daily_postprocess
 from src.modeling.datasets import build_and_save_datasets
 from src.modeling.evaluation import rank_models, summarize_oof_predictions
 from src.modeling.feature_policy import load_feature_policy
@@ -33,6 +34,7 @@ from src.modeling.train_service_models import train_service_models
 from src.modeling.transformer_service_to_picking import apply_transformer, compare_direct_vs_transformer_last_fold, fit_transformer
 from src.paths import BACKTESTS_DIR, CONFIG_DIR, FEATURES_DIR, FORECASTS_DIR, INTERIM_DIR, MODELS_DIR, PLOTS_DIR, PROCESSED_DIR, QA_DIR, REPORTS_DIR
 from src.reporting.explainability import export_model_explainability
+from src.reporting.forecast_calibration import generate_calibration_artifacts
 from src.reporting.plot_backtests import plot_backtest_errors
 from src.reporting.plot_forecasts import plot_history_and_forecast, plot_transformer_curve
 from src.reporting.qa_reports import save_join_reports, write_qa_report
@@ -582,10 +584,10 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
                 forecast["kpi"] = name.replace("ds_", "").replace("_dia", "")
                 forecast["source"] = "service_model"
                 trace = base_forecast.rename(columns={"forecast": "forecast_base"}).merge(
-                    forecast[["fecha", "tipo_servicio", "forecast"]],
+                    forecast[["fecha", "tipo_servicio", "forecast", "cartera_signal", "statistical_weight", "cartera_weight", "horizon_bucket"]],
                     on=["fecha", "tipo_servicio"],
                     how="left",
-                ).rename(columns={"forecast": "forecast_final"})
+                ).rename(columns={"forecast": "forecast_after_nowcasting"})
                 trace["kpi"] = forecast["kpi"].iloc[0]
                 trace["model_name"] = model_name
                 trace["forecast_run_timestamp"] = run_timestamp.isoformat()
@@ -647,13 +649,36 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
         if not frame.empty
     ]
     daily_output = pd.concat(daily_frames, ignore_index=True) if daily_frames else pd.DataFrame(columns=["fecha", "forecast", "kpi", "model_name", "source"])
+    daily_output = apply_daily_postprocess(daily_output, settings)
     daily_output["forecast_run_timestamp"] = run_timestamp.isoformat()
     daily_output["forecast_run_date"] = run_date
     daily_output["pipeline_run_id"] = pipeline_run_id
     daily_output.to_csv(FORECASTS_DIR / "daily_forecasts.csv", index=False)
     nowcasting_trace = pd.concat(nowcasting_trace_rows, ignore_index=True) if nowcasting_trace_rows else pd.DataFrame(
-        columns=["fecha", "tipo_servicio", "forecast_base", "forecast_final", "kpi", "model_name", "forecast_run_timestamp", "forecast_run_date", "pipeline_run_id", "horizon_days"]
+        columns=[
+            "fecha",
+            "tipo_servicio",
+            "forecast_base",
+            "forecast_after_nowcasting",
+            "cartera_signal",
+            "statistical_weight",
+            "cartera_weight",
+            "horizon_bucket",
+            "kpi",
+            "model_name",
+            "forecast_run_timestamp",
+            "forecast_run_date",
+            "pipeline_run_id",
+            "horizon_days",
+            "forecast_final",
+        ]
     )
+    if not nowcasting_trace.empty:
+        nowcasting_trace = nowcasting_trace.merge(
+            daily_output[["fecha", "kpi", "forecast"]].rename(columns={"forecast": "forecast_final"}),
+            on=["fecha", "kpi"],
+            how="left",
+        )
     nowcasting_trace.to_csv(FORECASTS_DIR / "nowcasting_trace_daily.csv", index=False)
 
     weekly_from_daily = reconcile_weekly_from_daily(daily_output[["fecha", "kpi", "forecast"]]) if not daily_output.empty else pd.DataFrame(columns=["fecha", "kpi", "forecast"])
@@ -714,6 +739,7 @@ def run_forecast(settings: dict, aliases: dict, regex_rules: dict) -> tuple[pd.D
         FORECASTS_DIR / "forecast_vs_actual_weekly_diagnostic.csv",
         migrated_existing_weekly_history,
     )
+    generate_calibration_artifacts(settings, context, datasets)
     return daily_output, weekly_output
 
 

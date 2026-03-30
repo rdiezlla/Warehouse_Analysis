@@ -34,6 +34,60 @@ nowcasting:
   cartera_weight_short: 0.65
   statistical_weight_medium: 1.0
   cartera_weight_medium: 0.0
+  kpi_weights:
+    SGE:
+      D+1:
+        statistical_weight_short: 0.0
+        cartera_weight_short: 1.0
+      D+2_a_D+3:
+        statistical_weight_short: 0.0
+        cartera_weight_short: 1.0
+      D+4_a_D+7:
+        statistical_weight_short: 0.65
+        cartera_weight_short: 0.35
+    SGP:
+      D+1:
+        statistical_weight_short: 0.0
+        cartera_weight_short: 1.0
+      D+2_a_D+3:
+        statistical_weight_short: 0.45
+        cartera_weight_short: 0.55
+      D+4_a_D+7:
+        statistical_weight_short: 0.65
+        cartera_weight_short: 0.35
+    EGE:
+      D+1:
+        statistical_weight_short: 1.0
+        cartera_weight_short: 0.0
+      D+2_a_D+3:
+        statistical_weight_short: 1.0
+        cartera_weight_short: 0.0
+      D+4_a_D+7:
+        statistical_weight_short: 1.0
+        cartera_weight_short: 0.0
+calibration:
+  recent_regime_start: 2026-03-01
+  baseline_reference:
+    nowcasting:
+      statistical_weight_short: 0.35
+      cartera_weight_short: 0.65
+      statistical_weight_medium: 1.0
+      cartera_weight_medium: 0.0
+    daily_postprocess: {}
+  daily_postprocess:
+    entregas_sge:
+      round: true
+      clip_min: 0.0
+    recogidas_ege:
+      round: true
+      clip_min: 0.0
+    picking_lines_pi:
+      round: true
+      clip_min: 0.0
+    picking_units_pi:
+      add_bias: 500.0
+      round: true
+      clip_min: 0.0
 qa:
   max_unknown_service_pct: 0.05
   min_join_coverage_warn: 0.5

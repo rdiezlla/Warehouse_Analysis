@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from src.features.cartera_features import build_cartera_snapshot
+from src.modeling.calibration import resolve_nowcasting_weights
 
 
 def build_cartera_maturity_curves(fact_cartera: pd.DataFrame, max_horizon: int = 28) -> pd.DataFrame:
@@ -52,20 +53,32 @@ def fit_cartera_scalers(actual_service_fact: pd.DataFrame, fact_cartera: pd.Data
 def apply_nowcasting(base_forecast: pd.DataFrame, fact_cartera: pd.DataFrame, scalers: pd.DataFrame, origin_date: pd.Timestamp, settings: dict, maturity_curves: pd.DataFrame | None = None) -> pd.DataFrame:
     snapshot = build_cartera_snapshot(fact_cartera, origin_date)
     if snapshot.empty:
-        return base_forecast
-    snapshot = snapshot.merge(scalers, on="tipo_servicio", how="left")
-    snapshot["horizonte_dias"] = (pd.to_datetime(snapshot["fecha_objetivo"]) - pd.Timestamp(origin_date).normalize()).dt.days.clip(lower=0)
-    if maturity_curves is not None and not maturity_curves.empty:
-        snapshot = snapshot.merge(maturity_curves, on=["tipo_servicio", "horizonte_dias"], how="left")
+        snapshot = pd.DataFrame(columns=["fecha_objetivo", "tipo_servicio", "cartera_signal"])
     else:
-        snapshot["visible_ratio_pedidos"] = 1.0
-    snapshot["visible_ratio_pedidos"] = snapshot["visible_ratio_pedidos"].fillna(1.0).clip(lower=0.05, upper=1.0)
-    snapshot["cartera_signal"] = (snapshot["pedidos_abiertos"] / snapshot["visible_ratio_pedidos"]) * snapshot["scaler"].fillna(1.0)
+        snapshot = snapshot.merge(scalers, on="tipo_servicio", how="left")
+        snapshot["horizonte_dias"] = (pd.to_datetime(snapshot["fecha_objetivo"]) - pd.Timestamp(origin_date).normalize()).dt.days.clip(lower=0)
+        if maturity_curves is not None and not maturity_curves.empty:
+            snapshot = snapshot.merge(maturity_curves, on=["tipo_servicio", "horizonte_dias"], how="left")
+        else:
+            snapshot["visible_ratio_pedidos"] = 1.0
+        snapshot["visible_ratio_pedidos"] = snapshot["visible_ratio_pedidos"].fillna(1.0).clip(lower=0.05, upper=1.0)
+        snapshot["cartera_signal"] = (snapshot["pedidos_abiertos"] / snapshot["visible_ratio_pedidos"]) * snapshot["scaler"].fillna(1.0)
     adjusted = base_forecast.merge(snapshot[["fecha_objetivo", "tipo_servicio", "cartera_signal"]], left_on=["fecha", "tipo_servicio"], right_on=["fecha_objetivo", "tipo_servicio"], how="left")
     adjusted["cartera_signal"] = adjusted["cartera_signal"].fillna(adjusted["forecast"])
     horizon = (pd.to_datetime(adjusted["fecha"]) - pd.Timestamp(origin_date).normalize()).dt.days
-    short_mask = horizon.between(0, settings["nowcasting"]["short_horizon_max"])
-    medium_mask = horizon.between(settings["nowcasting"]["short_horizon_max"] + 1, settings["nowcasting"]["medium_horizon_max"])
-    adjusted.loc[short_mask, "forecast"] = adjusted.loc[short_mask, "forecast"] * settings["nowcasting"]["statistical_weight_short"] + adjusted.loc[short_mask, "cartera_signal"] * settings["nowcasting"]["cartera_weight_short"]
-    adjusted.loc[medium_mask, "forecast"] = adjusted.loc[medium_mask, "forecast"] * settings["nowcasting"]["statistical_weight_medium"] + adjusted.loc[medium_mask, "cartera_signal"] * settings["nowcasting"]["cartera_weight_medium"]
-    return adjusted.drop(columns=["fecha_objetivo", "cartera_signal"], errors="ignore")
+    adjusted["horizon_days"] = horizon.astype(int)
+    weight_info = adjusted.apply(
+        lambda row: pd.Series(
+            resolve_nowcasting_weights(
+                settings,
+                row.get("tipo_servicio"),
+                int(row["horizon_days"]),
+            )
+        ),
+        axis=1,
+    )
+    adjusted["statistical_weight"] = weight_info["statistical_weight"]
+    adjusted["cartera_weight"] = weight_info["cartera_weight"]
+    adjusted["horizon_bucket"] = weight_info["horizon_bucket"]
+    adjusted["forecast"] = adjusted["forecast"] * adjusted["statistical_weight"] + adjusted["cartera_signal"] * adjusted["cartera_weight"]
+    return adjusted.drop(columns=["fecha_objetivo"], errors="ignore")
