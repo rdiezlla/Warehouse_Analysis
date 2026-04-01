@@ -1,10 +1,6 @@
-# Warehouse Analysis Dashboard (V1)
+# Warehouse Analysis Dashboard (V1 - Forecast)
 
-Primera versión del dashboard web moderno para `Warehouse_Analysis`, centrada solo en el módulo **Forecast**:
-- comparación `actual vs forecast vs 2024`
-- tarjetas KPI operativas
-- gráficas de líneas por KPI clave
-- filtro multi-trimestre (Q1-Q4)
+Dashboard web moderno para comparar `actual vs forecast vs 2024`.
 
 ## Stack
 
@@ -21,9 +17,9 @@ dashboard/
   deploy/
     serve-dist.ps1
   public/
-    data/                        # JSON consumidos por la app
+    data/
   scripts/
-    sync-consumption-data.mjs    # exporta/convierte capa consumo -> public/data
+    sync-consumption-data.mjs
   src/
     app/
     components/
@@ -36,13 +32,12 @@ dashboard/
     utils/
 ```
 
-## Fuente de datos (Forecast)
+## Datos que consume Forecast
 
-La app consume, en orden de prioridad, tablas de la capa de consumo en:
+Origen principal:
+- `../outputs/consumption`
 
-`../outputs/consumption`
-
-Tablas objetivo:
+Tablas:
 - `consumo_forecast_diario`
 - `consumo_forecast_semanal`
 - `consumo_vs_2024_diario`
@@ -50,83 +45,88 @@ Tablas objetivo:
 - `consumo_progreso_actual`
 - `dim_kpi`
 
-El script `npm run sync:data`:
-1. lee `.json` o `.csv` de esas tablas
-2. normaliza para frontend
-3. genera `public/data/*.json`
-4. crea `public/data/_metadata.json`
+`npm run sync:data`:
+1. Lee JSON/CSV de `outputs/consumption`.
+2. Genera/actualiza `public/data/*.json`.
+3. Actualiza `public/data/_metadata.json`.
 
-Si no encuentra una capa de consumo completa, genera un dataset demo para que la UI no se rompa.
-
-## Desarrollo local (con Node)
+## Primera vez (solo frontend)
 
 ```bash
-cd dashboard
+cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
 npm install
+```
+
+## Comandos rapidos
+
+### A) Pipeline + web (actualiza forecast y levanta dashboard)
+
+```bash
+cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis
+source .venv/bin/activate
+python -m src.main --stage all
+python -m src.main --stage consumption
+cd dashboard
 npm run sync:data
 npm run dev
 ```
 
-Alternativa directa:
+Abrir:
+- `http://localhost:5173`
+
+### B) Solo web (si ya tienes los datos)
 
 ```bash
-npm run dev:with-data
+cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+npm run dev
 ```
 
-## Build de producción
+Abrir:
+- `http://localhost:5173`
+
+### C) Compilar release
 
 ```bash
-cd dashboard
+cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
 npm run build:release
 ```
 
-Salida estática:
+Salida:
+- `dashboard/dist/`
 
-`dashboard/dist/`
+### D) Ver build compilada en local
 
-## Despliegue local en otro ordenador SIN Node (Windows)
+```bash
+cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+npm run preview
+```
 
-1. Copia la carpeta `dashboard/dist` y `dashboard/deploy/serve-dist.ps1` al equipo destino.
-2. Abre PowerShell en la carpeta `deploy`.
-3. Lanza:
+Abrir:
+- `http://localhost:4173`
+
+Nota:
+- `npm run dev` compila automaticamente en memoria con hot reload.
+
+## Despliegue en Windows sin Node
+
+Copiar al equipo destino:
+- `dist/`
+- `deploy/serve-dist.ps1`
+
+Ejecutar en PowerShell (desde `deploy`):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\serve-dist.ps1 -Port 8080 -Root ..\dist
 ```
 
-4. Abre el navegador en:
+Abrir:
+- `http://localhost:8080`
 
-`http://localhost:8080`
+## Scripts
 
-El servidor usa `.NET HttpListener` (nativo de Windows/PowerShell), sin Node.
-
-## Cómo actualizar datos cuando cambie el forecast
-
-En el equipo de desarrollo (con Node):
-
-1. Regenera capa de consumo del repo principal si aplica:
-
-```bash
-python -m src.main --stage consumption
-```
-
-2. Sincroniza los JSON del dashboard:
-
-```bash
-cd dashboard
-npm run sync:data
-```
-
-3. Recompila:
-
-```bash
-npm run build:release
-```
-
-4. Copia de nuevo `dist/` al equipo sin Node.
-
-## Notas de arquitectura para siguientes iteraciones
-
-- Servicio de datos desacoplado (`src/services/forecastDataService.ts`) listo para migrar de ficheros a API.
-- Tipado de tablas semanal incluido, aunque la V1 visualiza foco diario.
-- Sidebar preparada con placeholders deshabilitados para futuros módulos.
+- `npm run dev`: desarrollo Vite
+- `npm run sync:data`: sincroniza outputs de consumo a `public/data`
+- `npm run dev:with-data`: sync + dev
+- `npm run build`: build frontend
+- `npm run build:release`: sync + build
+- `npm run preview`: servir build local (requiere Node)

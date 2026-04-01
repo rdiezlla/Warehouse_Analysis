@@ -88,6 +88,8 @@ export interface KpiCardModel {
   valueActual: number | null
   valueForecast: number | null
   value2024: number | null
+  headlineValue: number | null
+  headlineLabel: string
   deltaVsForecastPct: number | null
   deltaVs2024Pct: number | null
   hasData: boolean

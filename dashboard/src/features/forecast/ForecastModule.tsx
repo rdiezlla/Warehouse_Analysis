@@ -6,6 +6,7 @@ import { useForecastData } from '@/features/forecast/hooks/useForecastData'
 import {
   buildChartModels,
   buildKpiCards,
+  getDefaultSelectedQuarters,
   getAvailableQuarters,
 } from '@/features/forecast/utils/forecastSelectors'
 import { KpiSummaryCard } from '@/features/forecast/components/KpiSummaryCard'
@@ -18,17 +19,25 @@ const KpiTrendChart = lazy(
 const toggleQuarterSelection = (
   selectedQuarters: number[],
   quarter: number,
-): number[] =>
-  selectedQuarters.includes(quarter)
-    ? selectedQuarters.filter((value) => value !== quarter)
-    : [...selectedQuarters, quarter].sort((a, b) => a - b)
+): number[] => {
+  if (selectedQuarters.includes(quarter)) {
+    const nextSelection = selectedQuarters.filter((value) => value !== quarter)
+    return nextSelection.length > 0 ? nextSelection : selectedQuarters
+  }
+
+  return [...selectedQuarters, quarter].sort((a, b) => a - b)
+}
 
 export const ForecastModule = () => {
   const { data, isLoading, error } = useForecastData()
   const [selectedQuarters, setSelectedQuarters] = useState<number[] | null>(null)
 
-  const availableQuarters = getAvailableQuarters(data?.consumoForecastDiario ?? [])
-  const effectiveSelectedQuarters = selectedQuarters ?? availableQuarters
+  const availableQuarters = getAvailableQuarters()
+  const defaultSelectedQuarters = getDefaultSelectedQuarters(
+    data?.consumoForecastDiario ?? [],
+    data?.consumoVs2024Diario ?? [],
+  )
+  const effectiveSelectedQuarters = selectedQuarters ?? defaultSelectedQuarters
 
   if (isLoading) {
     return (
@@ -104,7 +113,7 @@ export const ForecastModule = () => {
             selectedQuarters={effectiveSelectedQuarters}
             onToggleQuarter={(quarter) =>
               setSelectedQuarters((current) =>
-                toggleQuarterSelection(current ?? availableQuarters, quarter),
+                toggleQuarterSelection(current ?? defaultSelectedQuarters, quarter),
               )
             }
           />

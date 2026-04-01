@@ -1,7 +1,7 @@
 {
   "sourceMode": "consumption_outputs",
   "sourcePath": "/Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/outputs/consumption",
-  "syncedAt": "2026-04-01T18:11:01.144Z",
+  "syncedAt": "2026-04-01T19:28:57.922Z",
   "tables": {
     "consumo_forecast_diario": 140,
     "consumo_forecast_semanal": 25,

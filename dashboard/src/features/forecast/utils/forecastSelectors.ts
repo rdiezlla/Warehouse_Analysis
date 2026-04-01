@@ -3,6 +3,7 @@ import type {
   ConsumoVs2024DiarioRow,
   ForecastChartModel,
   KpiCardModel,
+  KpiCode,
   KpiGroupDefinition,
 } from '@/types/forecast'
 import { toQuarter, toYear, sortDates } from '@/utils/date'
@@ -14,8 +15,27 @@ type DailyValuePoint = {
   value2024: number | null
 }
 
+type UnifiedKpiPoint = {
+  actual: number | null
+  forecast: number | null
+  value2024: number | null
+}
+
 const safeAdd = (accumulator: number, value: number | null): number =>
   value === null ? accumulator : accumulator + value
+
+const mergeNullable = (
+  current: number | null,
+  nextValue: number | null,
+): number | null => {
+  if (nextValue === null) {
+    return current
+  }
+  if (current === null) {
+    return nextValue
+  }
+  return current + nextValue
+}
 
 const safeRatio = (
   actualValue: number | null,
@@ -66,23 +86,36 @@ const PRIMARY_CHART_GROUP_IDS: Array<KpiGroupDefinition['id']> = [
   'lineas_preparadas',
 ]
 
+const ALL_QUARTERS = [1, 2, 3, 4] as const
+
+const KPI_TO_GROUP = new Map<KpiCode, KpiGroupDefinition['id']>(
+  KPI_GROUPS.flatMap((group) => group.kpis.map((kpi) => [kpi, group.id] as const)),
+)
+
 export const getPrimaryChartGroups = (): KpiGroupDefinition[] =>
   KPI_GROUPS.filter((group) => PRIMARY_CHART_GROUP_IDS.includes(group.id))
 
-export const getAvailableQuarters = (
+export const getAvailableQuarters = (): number[] => [...ALL_QUARTERS]
+
+const getAnalysisYear = (
   forecastRows: ConsumoForecastDiarioRow[],
-): number[] => {
-  const years = forecastRows
+  vsRows: ConsumoVs2024DiarioRow[],
+): number => {
+  const years = [...forecastRows, ...vsRows]
     .map((row) => toYear(row.fecha))
     .filter((year): year is number => year !== null)
-  if (years.length === 0) {
-    return [1, 2, 3, 4]
-  }
+  return years.length > 0 ? Math.max(...years) : new Date().getFullYear()
+}
 
-  const currentYear = Math.max(...years)
+export const getDefaultSelectedQuarters = (
+  forecastRows: ConsumoForecastDiarioRow[],
+  vsRows: ConsumoVs2024DiarioRow[],
+): number[] => {
+  const analysisYear = getAnalysisYear(forecastRows, vsRows)
   const quarters = new Set<number>()
+
   for (const row of forecastRows) {
-    if (toYear(row.fecha) !== currentYear) {
+    if (toYear(row.fecha) !== analysisYear) {
       continue
     }
     const quarter = toQuarter(row.fecha)
@@ -91,26 +124,33 @@ export const getAvailableQuarters = (
     }
   }
 
-  return quarters.size > 0 ? [...quarters].sort((a, b) => a - b) : [1, 2, 3, 4]
-}
+  if (quarters.size === 0) {
+    for (const row of vsRows) {
+      if (toYear(row.fecha) !== analysisYear) {
+        continue
+      }
+      const quarter = toQuarter(row.fecha)
+      if (quarter !== null) {
+        quarters.add(quarter)
+      }
+    }
+  }
 
-const getCurrentYear = (forecastRows: ConsumoForecastDiarioRow[]): number => {
-  const years = forecastRows
-    .map((row) => toYear(row.fecha))
-    .filter((year): year is number => year !== null)
-  return years.length > 0 ? Math.max(...years) : new Date().getFullYear()
+  return quarters.size > 0
+    ? [...quarters].sort((a, b) => a - b)
+    : [...ALL_QUARTERS]
 }
 
 const shouldIncludeDate = (
   dateIso: string,
-  currentYear: number,
+  analysisYear: number,
   selectedQuarters: number[],
 ): boolean => {
-  if (toYear(dateIso) !== currentYear) {
+  if (selectedQuarters.length === 0) {
     return false
   }
 
-  if (selectedQuarters.length === 0) {
+  if (toYear(dateIso) !== analysisYear) {
     return false
   }
 
@@ -118,13 +158,50 @@ const shouldIncludeDate = (
   return quarter !== null && selectedQuarters.includes(quarter)
 }
 
-const buildVs2024Lookup = (
-  vsRows: ConsumoVs2024DiarioRow[],
-): Map<string, number | null> => {
-  const lookup = new Map<string, number | null>()
-  for (const row of vsRows) {
-    lookup.set(`${row.fecha}__${row.kpi}`, row.actual_value_2024)
+const buildForecastLookup = (
+  forecastRows: ConsumoForecastDiarioRow[],
+  analysisYear: number,
+  selectedQuarters: number[],
+): Map<string, { actual: number | null; forecast: number | null }> => {
+  const lookup = new Map<string, { actual: number | null; forecast: number | null }>()
+
+  for (const row of forecastRows) {
+    if (!shouldIncludeDate(row.fecha, analysisYear, selectedQuarters)) {
+      continue
+    }
+
+    const key = `${row.fecha}__${row.kpi}`
+    const current = lookup.get(key) ?? { actual: null, forecast: null }
+    current.actual = mergeNullable(current.actual, row.actual_value)
+    current.forecast = mergeNullable(current.forecast, row.forecast_value)
+    lookup.set(key, current)
   }
+
+  return lookup
+}
+
+const buildVsLookup = (
+  vsRows: ConsumoVs2024DiarioRow[],
+  analysisYear: number,
+  selectedQuarters: number[],
+): Map<string, { actualCurrent: number | null; value2024: number | null }> => {
+  const lookup = new Map<
+    string,
+    { actualCurrent: number | null; value2024: number | null }
+  >()
+
+  for (const row of vsRows) {
+    if (!shouldIncludeDate(row.fecha, analysisYear, selectedQuarters)) {
+      continue
+    }
+
+    const key = `${row.fecha}__${row.kpi}`
+    const current = lookup.get(key) ?? { actualCurrent: null, value2024: null }
+    current.actualCurrent = mergeNullable(current.actualCurrent, row.actual_value_current)
+    current.value2024 = mergeNullable(current.value2024, row.actual_value_2024)
+    lookup.set(key, current)
+  }
+
   return lookup
 }
 
@@ -133,44 +210,53 @@ const buildDailyValuesByGroup = (
   vsRows: ConsumoVs2024DiarioRow[],
   selectedQuarters: number[],
 ): Map<string, Record<string, DailyValuePoint>> => {
-  const currentYear = getCurrentYear(forecastRows)
-  const vs2024Lookup = buildVs2024Lookup(vsRows)
+  const analysisYear = getAnalysisYear(forecastRows, vsRows)
+  const forecastLookup = buildForecastLookup(
+    forecastRows,
+    analysisYear,
+    selectedQuarters,
+  )
+  const vsLookup = buildVsLookup(vsRows, analysisYear, selectedQuarters)
+  const allKeys = new Set<string>([...forecastLookup.keys(), ...vsLookup.keys()])
   const rowsByDate = new Map<string, Record<string, DailyValuePoint>>()
 
-  for (const row of forecastRows) {
-    if (!shouldIncludeDate(row.fecha, currentYear, selectedQuarters)) {
+  for (const key of allKeys) {
+    const [date, kpi] = key.split('__')
+    const groupId = KPI_TO_GROUP.get(kpi as KpiCode)
+    if (!groupId) {
       continue
     }
 
-    const group = KPI_GROUPS.find((item) => item.kpis.includes(row.kpi))
-    if (!group) {
-      continue
+    const forecastPoint = forecastLookup.get(key)
+    const vsPoint = vsLookup.get(key)
+    const unified: UnifiedKpiPoint = {
+      actual: forecastPoint?.actual ?? vsPoint?.actualCurrent ?? null,
+      forecast: forecastPoint?.forecast ?? null,
+      value2024: vsPoint?.value2024 ?? null,
     }
 
-    const byGroup = rowsByDate.get(row.fecha) ?? {}
-    const existingPoint = byGroup[group.id] ?? {
+    const byGroup = rowsByDate.get(date) ?? {}
+    const existingPoint = byGroup[groupId] ?? {
       actual: null,
       forecast: null,
       value2024: null,
     }
-
-    const actual2024 = vs2024Lookup.get(`${row.fecha}__${row.kpi}`) ?? null
-    byGroup[group.id] = {
+    byGroup[groupId] = {
       actual:
-        existingPoint.actual === null && row.actual_value === null
+        existingPoint.actual === null && unified.actual === null
           ? null
-          : safeAdd(existingPoint.actual ?? 0, row.actual_value),
+          : safeAdd(existingPoint.actual ?? 0, unified.actual),
       forecast:
-        existingPoint.forecast === null && row.forecast_value === null
+        existingPoint.forecast === null && unified.forecast === null
           ? null
-          : safeAdd(existingPoint.forecast ?? 0, row.forecast_value),
+          : safeAdd(existingPoint.forecast ?? 0, unified.forecast),
       value2024:
-        existingPoint.value2024 === null && actual2024 === null
+        existingPoint.value2024 === null && unified.value2024 === null
           ? null
-          : safeAdd(existingPoint.value2024 ?? 0, actual2024),
+          : safeAdd(existingPoint.value2024 ?? 0, unified.value2024),
     }
 
-    rowsByDate.set(row.fecha, byGroup)
+    rowsByDate.set(date, byGroup)
   }
 
   return rowsByDate
@@ -184,12 +270,9 @@ export const buildKpiCards = (
   const rowsByDate = buildDailyValuesByGroup(forecastRows, vsRows, selectedQuarters)
 
   return KPI_GROUPS.map((group) => {
-    let actualTotal = 0
-    let forecastTotal = 0
-    let total2024 = 0
-    let hasActual = false
-    let hasForecast = false
-    let has2024 = false
+    let actualTotal: number | null = null
+    let forecastTotal: number | null = null
+    let total2024: number | null = null
 
     for (const groupedData of rowsByDate.values()) {
       const point = groupedData[group.id]
@@ -197,31 +280,40 @@ export const buildKpiCards = (
         continue
       }
       if (point.actual !== null) {
-        actualTotal += point.actual
-        hasActual = true
+        actualTotal = mergeNullable(actualTotal, point.actual)
       }
       if (point.forecast !== null) {
-        forecastTotal += point.forecast
-        hasForecast = true
+        forecastTotal = mergeNullable(forecastTotal, point.forecast)
       }
       if (point.value2024 !== null) {
-        total2024 += point.value2024
-        has2024 = true
+        total2024 = mergeNullable(total2024, point.value2024)
       }
     }
 
-    const actualValue = hasActual ? actualTotal : null
-    const forecastValue = hasForecast ? forecastTotal : null
-    const value2024 = has2024 ? total2024 : null
+    const actualValue = actualTotal
+    const forecastValue = forecastTotal
+    const value2024 = total2024
+    const headlineValue = actualValue ?? forecastValue ?? value2024
+    const headlineLabel =
+      actualValue !== null
+        ? 'Actual'
+        : forecastValue !== null
+          ? 'Forecast (sin actual)'
+          : value2024 !== null
+            ? '2024 (sin actual)'
+            : 'Sin datos'
+
     return {
       id: group.id,
       title: group.label,
       valueActual: actualValue,
       valueForecast: forecastValue,
       value2024,
+      headlineValue,
+      headlineLabel,
       deltaVsForecastPct: safeRatio(actualValue, forecastValue),
       deltaVs2024Pct: safeRatio(actualValue, value2024),
-      hasData: actualValue !== null || forecastValue !== null || value2024 !== null,
+      hasData: headlineValue !== null,
     }
   })
 }
@@ -234,22 +326,31 @@ export const buildChartModels = (
   const rowsByDate = buildDailyValuesByGroup(forecastRows, vsRows, selectedQuarters)
   const sortedDates = sortDates([...rowsByDate.keys()])
 
-  return getPrimaryChartGroups().map((group) => ({
-    id: group.id,
-    title: group.label,
-    points: sortedDates.map((date) => {
-      const point = rowsByDate.get(date)?.[group.id] ?? {
-        actual: null,
-        forecast: null,
-        value2024: null,
-      }
-      return {
-        fecha: date,
-        label: formatDateLabel(date),
-        actual: point.actual,
-        forecast: point.forecast,
-        value2024: point.value2024,
-      }
-    }),
-  }))
+  return getPrimaryChartGroups().map((group) => {
+    const groupDates = sortedDates.filter((date) => {
+      const point = rowsByDate.get(date)?.[group.id]
+      return point
+        ? point.actual !== null || point.forecast !== null || point.value2024 !== null
+        : false
+    })
+
+    return {
+      id: group.id,
+      title: group.label,
+      points: groupDates.map((date) => {
+        const point = rowsByDate.get(date)?.[group.id] ?? {
+          actual: null,
+          forecast: null,
+          value2024: null,
+        }
+        return {
+          fecha: date,
+          label: formatDateLabel(date),
+          actual: point.actual,
+          forecast: point.forecast,
+          value2024: point.value2024,
+        }
+      }),
+    }
+  })
 }

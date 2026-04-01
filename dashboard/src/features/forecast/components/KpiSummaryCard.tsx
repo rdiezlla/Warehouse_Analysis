@@ -8,6 +8,11 @@ interface KpiSummaryCardProps {
   model: KpiCardModel
 }
 
+const renderMetricValue = (
+  value: number | null,
+  emptyLabel: string,
+): string => (value === null || Number.isNaN(value) ? emptyLabel : formatCompactNumber(value))
+
 const DeltaIndicator = ({ value }: { value: number | null }) => {
   if (value === null) {
     return <span className="text-xs text-slate-400">sin referencia</span>
@@ -37,19 +42,28 @@ export const KpiSummaryCard = ({ model }: KpiSummaryCardProps) => (
       <DeltaIndicator value={model.deltaVsForecastPct} />
     </div>
     <p className="text-3xl font-semibold tracking-tight text-slate-950">
-      {formatCompactNumber(model.valueActual)}
+      {formatCompactNumber(model.headlineValue)}
+    </p>
+    <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+      {model.headlineLabel}
     </p>
     <div className="mt-4 space-y-2 text-sm">
       <div className="flex items-center justify-between text-slate-500">
+        <span>Actual</span>
+        <span className="font-medium text-slate-700">
+          {renderMetricValue(model.valueActual, 'sin dato')}
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-slate-500">
         <span>Forecast</span>
         <span className="font-medium text-slate-700">
-          {formatCompactNumber(model.valueForecast)}
+          {renderMetricValue(model.valueForecast, 'sin forecast')}
         </span>
       </div>
       <div className="flex items-center justify-between text-slate-500">
         <span>2024</span>
         <span className="font-medium text-slate-700">
-          {formatCompactNumber(model.value2024)}
+          {renderMetricValue(model.value2024, 'sin referencia')}
         </span>
       </div>
       <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">

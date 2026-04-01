@@ -1,98 +1,140 @@
-# Warehouse Operational Forecasting
+# Warehouse_Analysis
 
-Proyecto local de forecasting operativo para operaciones log?sticas reales orientado a producci?n local, reproducible y modular.
+Pipeline de forecasting operativo + dashboard web (modulo Forecast).
 
-## Objetivo
+## 1) Requisitos
 
-El pipeline construye y valida forecasts de servicios y picking con separaci?n expl?cita entre demanda por fecha de servicio y carga real por fecha operativa.
+Maquina de desarrollo:
+- Python 3.11+ (recomendado)
+- Node.js 20+ y npm
 
-Salidas principales:
-- Forecast diario y semanal de `n_entregas_SGE`
-- Forecast diario y semanal de `n_entregas_SGP`
-- Forecast diario y semanal de `n_recogidas_EGE`
-- Forecast diario y semanal de `picking_lines_PI`
-- Forecast diario y semanal de `picking_units_PI`
-- Si hay cobertura suficiente con maestro: `picking_kg_dia`, `picking_m3_dia`
+Maquina de visualizacion sin Node:
+- Solo navegador
+- En Windows, PowerShell (usa `dashboard/deploy/serve-dist.ps1`)
 
-## Estructura
+## 2) Primera instalacion (una sola vez)
 
-- `config/`: configuraci?n, aliases y reglas regex
-- `data/raw/`: copia local controlada de los Excel originales
-- `data/interim/`: tablas limpias intermedias
-- `data/processed/`: facts, datasets y tablas finales
-- `data/external/`: calendarios y referencias reproducibles
-- `outputs/`: QA, m?tricas, forecasts, modelos, plots y reportes
-- `src/`: c?digo fuente del pipeline
-
-## Instalaci?n
+Desde la raiz del repo:
 
 ```bash
+cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis
 python -m venv .venv
-.venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Configuraci?n
-
-Archivo principal: `config/settings.yaml`
-
-Puntos relevantes:
-- nombres esperados de los 4 Excel
-- horizontes de forecast y backtesting
-- ventanas de lags/rolling
-- pesos de nowcasting
-- thresholds de QA
-
-Los aliases de columnas viven en `config/column_aliases.yaml`.
-
-## Ejecuci?n
-
-Pipeline completo:
+Instalar frontend:
 
 ```bash
+cd dashboard
+npm install
+```
+
+## 3) Comandos rapidos
+
+### A) Pipeline + web (actualiza forecast y levanta dashboard)
+
+```bash
+cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis
+source .venv/bin/activate
 python -m src.main --stage all
+python -m src.main --stage consumption
+cd dashboard
+npm run sync:data
+npm run dev
 ```
 
-Etapas individuales:
+Abrir:
+- `http://localhost:5173`
+
+### B) Solo web (si ya tienes datos actualizados o no quieres recalcular forecast)
 
 ```bash
-python -m src.main --stage qa
-python -m src.main --stage features
-python -m src.main --stage train
-python -m src.main --stage backtest
-python -m src.main --stage forecast
+cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+npm run dev
 ```
 
-## Qu? hace cada etapa
+Abrir:
+- `http://localhost:5173`
 
-- `qa`: ingesta, limpieza robusta, normalizaci?n de claves, calendario, joins, facts y reportes QA
-- `features`: datasets diarios y semanales por KPI
-- `train`: entrenamiento de modelos lineales y boosting, m?s serializaci?n
-- `backtest`: walk-forward temporal diario y semanal y comparativas
-- `forecast`: forecasts finales, transformador servicio->picking, nowcasting y reconciliaci?n semanal
+### C) Compilar web (release)
 
-## Outputs importantes
+```bash
+cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+npm run build:release
+```
 
-- `data/processed/fact_servicio_dia.*`
-- `data/processed/fact_picking_dia.*`
-- `data/processed/fact_cartera.*`
-- `data/processed/dim_date.*`
-- `outputs/backtests/backtest_metrics_*.csv`
-- `outputs/forecasts/daily_forecasts.csv`
-- `outputs/forecasts/weekly_forecasts.csv`
-- `outputs/models/model_registry.json`
-- `outputs/reports/*.md`
-- `outputs/plots/*.png`
+Salida:
+- `dashboard/dist/`
 
-## Limitaciones conocidas
+### D) Ver la build compilada en local
 
-- La cobertura de joins entre movimientos y albaranes no es completa; el pipeline lo reporta expl?citamente y degrada con warnings.
-- `2025` queda excluido del entrenamiento normal y se trata como apagado estructural.
-- La se?al de solicitudes se usa principalmente para nowcasting de corto plazo y stress test 2026.
-- CR y EP quedan preparados en facts y reporting, pero la V1 productiva prioriza PI.
+```bash
+cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+npm run preview
+```
 
-## Siguientes pasos sugeridos
+Abrir:
+- `http://localhost:4173`
 
-- Extender validaci?n operativa de CR y EP
-- Incorporar snapshots operativos de cartera si aparecen nuevas fuentes
-- Afinar intensidades del transformador por urgencia y familia de art?culo
+Nota:
+- `npm run dev` ya compila automaticamente en modo desarrollo (hot reload). No hace falta compilar manualmente cada vez.
+
+## 4) Despliegue en otro ordenador sin Node (Windows)
+
+En el PC de desarrollo, copia al PC destino:
+- `dashboard/dist/`
+- `dashboard/deploy/serve-dist.ps1`
+
+En el PC destino (PowerShell):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\serve-dist.ps1 -Port 8080 -Root ..\dist
+```
+
+Abrir:
+- `http://localhost:8080`
+
+## 5) Cuando se actualizan datos (operativa recomendada)
+
+1. Ejecutar pipeline en el repo:
+
+```bash
+cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis
+source .venv/bin/activate
+python -m src.main --stage all
+python -m src.main --stage consumption
+```
+
+2. Sincronizar y recompilar dashboard:
+
+```bash
+cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+npm run sync:data
+npm run build:release
+```
+
+3. Copiar `dist/` al PC sin Node y arrancar con `serve-dist.ps1`.
+
+## 6) Fuentes de datos del dashboard Forecast
+
+El dashboard consume desde `outputs/consumption`:
+- `consumo_forecast_diario`
+- `consumo_forecast_semanal`
+- `consumo_vs_2024_diario`
+- `consumo_vs_2024_semanal`
+- `consumo_progreso_actual`
+- `dim_kpi`
+
+Si faltan tablas minimas, `sync:data` genera un modo demo para evitar rotura visual.
+
+## 7) Ubicacion de ingesta de Excel
+
+La ingesta del pipeline usa los Excel del proyecto en:
+- `/Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis`
+
+Principalmente:
+- `Informacion_albaranaes.xlsx`
+- `movimientos.xlsx`
+- `lineas_solicitudes_con_pedidos.xlsx`
+- `maestro_dimensiones_limpio.xlsx`

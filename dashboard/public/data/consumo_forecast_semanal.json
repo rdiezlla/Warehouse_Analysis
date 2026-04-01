@@ -8,13 +8,13 @@
     "signed_error": "-1.0",
     "ape": "0.5",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "-1",
     "horizon_weeks_bucket": "",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-03-30",
@@ -25,13 +25,13 @@
     "signed_error": "22.5",
     "ape": "3.75",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "-1",
     "horizon_weeks_bucket": "",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-03-30",
@@ -42,13 +42,13 @@
     "signed_error": "-91.0",
     "ape": "0.978494623655914",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "-1",
     "horizon_weeks_bucket": "",
     "forecast_source": "daily_aggregated",
     "actual_source": "movimientos",
     "actual_truth_status": "observado_final",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-03-30",
@@ -59,13 +59,13 @@
     "signed_error": "2294.25",
     "ape": "0.3365113123831176",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "-1",
     "horizon_weeks_bucket": "",
     "forecast_source": "daily_aggregated",
     "actual_source": "movimientos",
     "actual_truth_status": "observado_final",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-03-30",
@@ -76,13 +76,13 @@
     "signed_error": "-2.0",
     "ape": "1.0",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "-1",
     "horizon_weeks_bucket": "",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-06",
@@ -93,13 +93,13 @@
     "signed_error": "4.0",
     "ape": "1.0",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "0",
     "horizon_weeks_bucket": "",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-06",
@@ -110,13 +110,13 @@
     "signed_error": "42.7",
     "ape": "3.0500000000000003",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "0",
     "horizon_weeks_bucket": "",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-06",
@@ -127,13 +127,13 @@
     "signed_error": "",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "0",
     "horizon_weeks_bucket": "",
     "forecast_source": "daily_aggregated",
     "actual_source": "",
     "actual_truth_status": "",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-06",
@@ -144,13 +144,13 @@
     "signed_error": "",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "0",
     "horizon_weeks_bucket": "",
     "forecast_source": "daily_aggregated",
     "actual_source": "",
     "actual_truth_status": "",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-06",
@@ -161,13 +161,13 @@
     "signed_error": "6.0",
     "ape": "6.0",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "0",
     "horizon_weeks_bucket": "",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-13",
@@ -178,13 +178,13 @@
     "signed_error": "8.0",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "1",
     "horizon_weeks_bucket": "W+1",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-13",
@@ -195,13 +195,13 @@
     "signed_error": "52.375",
     "ape": "6.546875",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "1",
     "horizon_weeks_bucket": "W+1",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-13",
@@ -212,13 +212,13 @@
     "signed_error": "",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "1",
     "horizon_weeks_bucket": "W+1",
     "forecast_source": "daily_aggregated",
     "actual_source": "",
     "actual_truth_status": "",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-13",
@@ -229,13 +229,13 @@
     "signed_error": "",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "1",
     "horizon_weeks_bucket": "W+1",
     "forecast_source": "daily_aggregated",
     "actual_source": "",
     "actual_truth_status": "",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-13",
@@ -246,13 +246,13 @@
     "signed_error": "8.0",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "1",
     "horizon_weeks_bucket": "W+1",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-20",
@@ -263,13 +263,13 @@
     "signed_error": "6.0",
     "ape": "6.0",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "2",
     "horizon_weeks_bucket": "W+2",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-20",
@@ -280,13 +280,13 @@
     "signed_error": "59.9375",
     "ape": "59.9375",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "2",
     "horizon_weeks_bucket": "W+2",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-20",
@@ -297,13 +297,13 @@
     "signed_error": "",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "2",
     "horizon_weeks_bucket": "W+2",
     "forecast_source": "daily_aggregated",
     "actual_source": "",
     "actual_truth_status": "",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-20",
@@ -314,13 +314,13 @@
     "signed_error": "",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "2",
     "horizon_weeks_bucket": "W+2",
     "forecast_source": "daily_aggregated",
     "actual_source": "",
     "actual_truth_status": "",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-20",
@@ -331,13 +331,13 @@
     "signed_error": "8.0",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "2",
     "horizon_weeks_bucket": "W+2",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-27",
@@ -348,13 +348,13 @@
     "signed_error": "5.0",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "3",
     "horizon_weeks_bucket": "W+3_a_W+4",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-27",
@@ -365,13 +365,13 @@
     "signed_error": "30.5",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "3",
     "horizon_weeks_bucket": "W+3_a_W+4",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-27",
@@ -382,13 +382,13 @@
     "signed_error": "",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "3",
     "horizon_weeks_bucket": "W+3_a_W+4",
     "forecast_source": "daily_aggregated",
     "actual_source": "",
     "actual_truth_status": "",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-27",
@@ -399,13 +399,13 @@
     "signed_error": "",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "3",
     "horizon_weeks_bucket": "W+3_a_W+4",
     "forecast_source": "daily_aggregated",
     "actual_source": "",
     "actual_truth_status": "",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   },
   {
     "week_start_date": "2026-04-27",
@@ -416,12 +416,12 @@
     "signed_error": "6.0",
     "ape": "",
     "forecast_run_date": "2026-04-01",
-    "forecast_run_timestamp": "2026-04-01 20:00:28.930735+02:00",
+    "forecast_run_timestamp": "2026-04-01 20:56:07.242987+02:00",
     "horizon_weeks": "3",
     "horizon_weeks_bucket": "W+3_a_W+4",
     "forecast_source": "daily_aggregated",
     "actual_source": "solicitudes",
     "actual_truth_status": "visible_cartera",
-    "pipeline_run_id": "3e16c9ef-d7bb-4a1b-86b4-5185c4db969c"
+    "pipeline_run_id": "a3687499-674a-4827-906c-e5460a9b5ee4"
   }
 ]
