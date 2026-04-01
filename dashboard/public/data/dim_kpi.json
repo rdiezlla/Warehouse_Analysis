@@ -2,36 +2,61 @@
   {
     "kpi": "entregas_sge",
     "nombre_negocio": "Entregas SGE",
+    "familia_kpi": "servicios",
     "unidad": "servicios",
     "nivel_uso_operativo": "operativo",
-    "orden_visual": 1
+    "horizonte_recomendado": "D+1..D+7; semanal oficial tactico",
+    "usar_diario": "True",
+    "usar_semanal": "True",
+    "comentario_operativo": "Usar en diario corto plazo y semanal oficial agregado.",
+    "orden_visual": "1"
   },
   {
     "kpi": "entregas_sgp",
     "nombre_negocio": "Entregas SGP",
+    "familia_kpi": "servicios",
     "unidad": "servicios",
     "nivel_uso_operativo": "operativo",
-    "orden_visual": 2
+    "horizonte_recomendado": "D+1..D+7; semanal oficial tactico",
+    "usar_diario": "True",
+    "usar_semanal": "True",
+    "comentario_operativo": "Usar en diario corto plazo; medio plazo mas fragil.",
+    "orden_visual": "2"
   },
   {
     "kpi": "recogidas_ege",
     "nombre_negocio": "Recogidas EGE",
+    "familia_kpi": "servicios",
     "unidad": "servicios",
     "nivel_uso_operativo": "cautela",
-    "orden_visual": 3
+    "horizonte_recomendado": "D+1..D+7 con cautela",
+    "usar_diario": "True",
+    "usar_semanal": "True",
+    "comentario_operativo": "KPI delicado; revisar siempre actual_truth_status y sesgo.",
+    "orden_visual": "3"
   },
   {
     "kpi": "picking_lines_pi",
-    "nombre_negocio": "Picking líneas PI",
+    "nombre_negocio": "Picking lineas PI",
+    "familia_kpi": "picking",
     "unidad": "lineas",
     "nivel_uso_operativo": "operativo",
-    "orden_visual": 4
+    "horizonte_recomendado": "D+1..D+14; semanal oficial tactico",
+    "usar_diario": "True",
+    "usar_semanal": "True",
+    "comentario_operativo": "KPI robusto para operacion diaria y vista semanal.",
+    "orden_visual": "4"
   },
   {
     "kpi": "picking_units_pi",
     "nombre_negocio": "Picking unidades PI",
+    "familia_kpi": "picking",
     "unidad": "unidades",
     "nivel_uso_operativo": "operativo",
-    "orden_visual": 5
+    "horizonte_recomendado": "D+1..D+14; semanal oficial tactico",
+    "usar_diario": "True",
+    "usar_semanal": "True",
+    "comentario_operativo": "Usar para carga agregada; vigilar sesgo residual.",
+    "orden_visual": "5"
   }
 ]

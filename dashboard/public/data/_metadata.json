@@ -1,12 +1,12 @@
 {
-  "sourceMode": "demo",
-  "sourcePath": "demo_embebido (outputs/consumption no encontrado o incompleto)",
-  "syncedAt": "2026-03-30T19:52:36.889Z",
+  "sourceMode": "consumption_outputs",
+  "sourcePath": "/Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/outputs/consumption",
+  "syncedAt": "2026-04-01T18:11:01.144Z",
   "tables": {
-    "consumo_forecast_diario": 1825,
-    "consumo_forecast_semanal": 265,
-    "consumo_vs_2024_diario": 1825,
-    "consumo_vs_2024_semanal": 265,
+    "consumo_forecast_diario": 140,
+    "consumo_forecast_semanal": 25,
+    "consumo_vs_2024_diario": 1203,
+    "consumo_vs_2024_semanal": 173,
     "consumo_progreso_actual": 15,
     "dim_kpi": 5
   }
