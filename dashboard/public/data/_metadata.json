@@ -1,7 +1,7 @@
 {
   "sourceMode": "demo",
   "sourcePath": "demo_embebido (outputs/consumption no encontrado o incompleto)",
-  "syncedAt": "2026-03-30T19:40:30.370Z",
+  "syncedAt": "2026-03-30T19:52:36.889Z",
   "tables": {
     "consumo_forecast_diario": 1825,
     "consumo_forecast_semanal": 265,
