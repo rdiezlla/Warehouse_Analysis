@@ -12,15 +12,17 @@ Maquina de visualizacion sin Node:
 - Solo navegador
 - En Windows, PowerShell (usa `dashboard/deploy/serve-dist.ps1`)
 
+Nota Windows:
+- Si `npm` falla en PowerShell con `npm.ps1` bloqueado, usa `npm.cmd` o `dashboard\start-dev.cmd`.
+- Para el pipeline, usa `.\.venv\Scripts\python.exe` o `run-pipeline.cmd`.
+
 ## 2) Primera instalacion (una sola vez)
 
 Desde la raiz del repo:
 
 ```bash
-cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis
 python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+./.venv/Scripts/python.exe -m pip install -r requirements.txt
 ```
 
 Instalar frontend:
@@ -30,18 +32,32 @@ cd dashboard
 npm install
 ```
 
+En Windows PowerShell:
+
+```powershell
+Set-Location .\dashboard
+.\start-dev.cmd --install
+```
+
 ## 3) Comandos rapidos
 
 ### A) Pipeline + web (actualiza forecast y levanta dashboard)
 
 ```bash
-cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis
-source .venv/bin/activate
 python -m src.main --stage all
 python -m src.main --stage consumption
 cd dashboard
 npm run sync:data
 npm run dev
+```
+
+En Windows PowerShell:
+
+```powershell
+.\run-pipeline.cmd all
+.\run-pipeline.cmd consumption
+Set-Location .\dashboard
+.\start-dev.cmd
 ```
 
 Abrir:
@@ -50,8 +66,15 @@ Abrir:
 ### B) Solo web (si ya tienes datos actualizados o no quieres recalcular forecast)
 
 ```bash
-cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+cd dashboard
 npm run dev
+```
+
+En Windows PowerShell:
+
+```powershell
+Set-Location .\dashboard
+.\start-dev.cmd
 ```
 
 Abrir:
@@ -60,8 +83,15 @@ Abrir:
 ### C) Compilar web (release)
 
 ```bash
-cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+cd dashboard
 npm run build:release
+```
+
+En Windows PowerShell:
+
+```powershell
+Set-Location .\dashboard
+npm.cmd run build:release
 ```
 
 Salida:
@@ -70,8 +100,15 @@ Salida:
 ### D) Ver la build compilada en local
 
 ```bash
-cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+cd dashboard
 npm run preview
+```
+
+En Windows PowerShell:
+
+```powershell
+Set-Location .\dashboard
+npm.cmd run preview
 ```
 
 Abrir:
@@ -100,18 +137,31 @@ Abrir:
 1. Ejecutar pipeline en el repo:
 
 ```bash
-cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis
-source .venv/bin/activate
 python -m src.main --stage all
 python -m src.main --stage consumption
+```
+
+En Windows PowerShell:
+
+```powershell
+.\run-pipeline.cmd all
+.\run-pipeline.cmd consumption
 ```
 
 2. Sincronizar y recompilar dashboard:
 
 ```bash
-cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+cd dashboard
 npm run sync:data
 npm run build:release
+```
+
+En Windows PowerShell:
+
+```powershell
+Set-Location .\dashboard
+npm.cmd run sync:data
+npm.cmd run build:release
 ```
 
 3. Copiar `dist/` al PC sin Node y arrancar con `serve-dist.ps1`.
@@ -131,7 +181,8 @@ Si faltan tablas minimas, `sync:data` genera un modo demo para evitar rotura vis
 ## 7) Ubicacion de ingesta de Excel
 
 La ingesta del pipeline usa los Excel del proyecto en:
-- `/Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis`
+- la raiz del repo (`ROOT`)
+- `data/raw`
 
 Principalmente:
 - `Informacion_albaranaes.xlsx`

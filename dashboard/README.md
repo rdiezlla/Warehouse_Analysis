@@ -50,11 +50,21 @@ Tablas:
 2. Genera/actualiza `public/data/*.json`.
 3. Actualiza `public/data/_metadata.json`.
 
+Nota Windows:
+- Si `npm` falla en PowerShell con `npm.ps1` bloqueado, usa `npm.cmd` o `start-dev.cmd`.
+
 ## Primera vez (solo frontend)
 
 ```bash
-cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+cd dashboard
 npm install
+```
+
+En Windows PowerShell:
+
+```powershell
+Set-Location .\dashboard
+.\start-dev.cmd --install
 ```
 
 ## Comandos rapidos
@@ -62,13 +72,21 @@ npm install
 ### A) Pipeline + web (actualiza forecast y levanta dashboard)
 
 ```bash
-cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis
-source .venv/bin/activate
 python -m src.main --stage all
 python -m src.main --stage consumption
 cd dashboard
 npm run sync:data
 npm run dev
+```
+
+En Windows PowerShell:
+
+```powershell
+Set-Location ..
+.\run-pipeline.cmd all
+.\run-pipeline.cmd consumption
+Set-Location .\dashboard
+.\start-dev.cmd
 ```
 
 Abrir:
@@ -77,8 +95,15 @@ Abrir:
 ### B) Solo web (si ya tienes los datos)
 
 ```bash
-cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+cd dashboard
 npm run dev
+```
+
+En Windows PowerShell:
+
+```powershell
+Set-Location .\dashboard
+.\start-dev.cmd
 ```
 
 Abrir:
@@ -87,8 +112,15 @@ Abrir:
 ### C) Compilar release
 
 ```bash
-cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+cd dashboard
 npm run build:release
+```
+
+En Windows PowerShell:
+
+```powershell
+Set-Location .\dashboard
+npm.cmd run build:release
 ```
 
 Salida:
@@ -97,8 +129,15 @@ Salida:
 ### D) Ver build compilada en local
 
 ```bash
-cd /Users/rubendiezllamas/Desktop/proyectos/Warehouse_Analysis/dashboard
+cd dashboard
 npm run preview
+```
+
+En Windows PowerShell:
+
+```powershell
+Set-Location .\dashboard
+npm.cmd run preview
 ```
 
 Abrir:
@@ -125,6 +164,7 @@ Abrir:
 ## Scripts
 
 - `npm run dev`: desarrollo Vite
+- `.\start-dev.cmd`: arranque recomendado en Windows PowerShell
 - `npm run sync:data`: sincroniza outputs de consumo a `public/data`
 - `npm run dev:with-data`: sync + dev
 - `npm run build`: build frontend
