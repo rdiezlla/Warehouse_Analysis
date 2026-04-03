@@ -49,12 +49,6 @@ export const KpiSummaryCard = ({ model }: KpiSummaryCardProps) => (
     </p>
     <div className="mt-4 space-y-2 text-sm">
       <div className="flex items-center justify-between text-slate-500">
-        <span>Actual</span>
-        <span className="font-medium text-slate-700">
-          {renderMetricValue(model.valueActual, 'sin dato')}
-        </span>
-      </div>
-      <div className="flex items-center justify-between text-slate-500">
         <span>Forecast</span>
         <span className="font-medium text-slate-700">
           {renderMetricValue(model.valueForecast, 'sin forecast')}

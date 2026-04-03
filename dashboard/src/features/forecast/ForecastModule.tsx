@@ -6,8 +6,8 @@ import { QuarterFilter } from '@/features/forecast/components/QuarterFilter'
 import { KpiSummaryCard } from '@/features/forecast/components/KpiSummaryCard'
 import { useForecastData } from '@/features/forecast/hooks/useForecastData'
 import {
-  buildChartModels,
   buildKpiCards,
+  buildWeeklyChartModels,
   getAvailableQuarters,
   getDefaultSelectedQuarters,
 } from '@/features/forecast/utils/forecastSelectors'
@@ -69,9 +69,9 @@ export const ForecastModule = () => {
     data.consumoVs2024Diario,
     effectiveSelectedQuarters,
   )
-  const chartModels = buildChartModels(
-    data.consumoForecastDiario,
-    data.consumoVs2024Diario,
+  const chartModels = buildWeeklyChartModels(
+    data.consumoForecastSemanal,
+    data.consumoVs2024Semanal,
     effectiveSelectedQuarters,
   )
   const hasAnyPoint = chartModels.some((model) => model.points.length > 0)

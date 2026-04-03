@@ -58,7 +58,14 @@ const KpiTrendChart = ({ chart }: KpiTrendChartProps) => (
     <ResponsiveContainer width="100%" height="90%">
       <LineChart data={chart.points} margin={{ left: -20, right: 16, top: 8, bottom: 8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-        <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+        <XAxis
+          dataKey="label"
+          tick={{ fill: '#64748b', fontSize: 12 }}
+          axisLine={false}
+          tickLine={false}
+          minTickGap={18}
+          interval="preserveStartEnd"
+        />
         <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
         <Tooltip content={<TooltipContent />} />
         <Legend
