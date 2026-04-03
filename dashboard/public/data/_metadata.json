@@ -1,7 +1,7 @@
 {
   "sourceMode": "consumption_outputs",
   "sourcePath": "C:\\Users\\rocio\\Desktop\\proyectos\\Warehouse_Analysis\\outputs\\consumption",
-  "syncedAt": "2026-04-03T17:47:05.569Z",
+  "syncedAt": "2026-04-03T18:51:08.848Z",
   "tables": {
     "consumo_forecast_diario": 140,
     "consumo_forecast_semanal": 25,
