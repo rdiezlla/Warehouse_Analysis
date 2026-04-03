@@ -10,8 +10,9 @@ from src.modeling.forecasters import ForecasterConfig, RecursiveForecaster
 
 def fit_transformer(movimientos_albaranes: pd.DataFrame, albaranes: pd.DataFrame) -> dict[str, pd.DataFrame]:
     matched = movimientos_albaranes[(movimientos_albaranes["tipo_movimiento"] == "PI") & (movimientos_albaranes["match_albaranes"])].copy()
-    matched = matched.dropna(subset=["fecha_operativa_mov", "fecha_servicio"])
-    matched["fecha_servicio"] = matched["fecha_servicio"].dt.normalize()
+    service_date_col = "fecha_servicio_objetiva" if "fecha_servicio_objetiva" in matched.columns else "fecha_servicio"
+    matched = matched.dropna(subset=["fecha_operativa_mov", service_date_col])
+    matched["fecha_servicio"] = pd.to_datetime(matched[service_date_col]).dt.normalize()
     matched["fecha_operativa_mov"] = matched["fecha_operativa_mov"].dt.normalize()
     matched["offset_dias"] = (matched["fecha_servicio"] - matched["fecha_operativa_mov"]).dt.days
     matched = matched[matched["offset_dias"].between(0, 3)]
@@ -120,7 +121,8 @@ def compare_direct_vs_transformer_last_fold(
         return pd.DataFrame(), pd.DataFrame()
     origin, test_start, test_end = boundaries[-1]
 
-    albaranes_train = albaranes[(albaranes["fecha_servicio"] <= origin) & (albaranes["fecha_servicio"].dt.year != 2025)].copy()
+    service_date_col = "fecha_servicio_objetiva" if "fecha_servicio_objetiva" in albaranes.columns else "fecha_servicio"
+    albaranes_train = albaranes[(albaranes[service_date_col] <= origin) & (albaranes[service_date_col].dt.year != 2025)].copy()
     mov_train = movimientos_albaranes[
         (movimientos_albaranes["fecha_operativa_mov"] <= origin)
         & (movimientos_albaranes["fecha_operativa_mov"].dt.year != 2025)

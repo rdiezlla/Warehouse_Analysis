@@ -39,6 +39,7 @@ from src.reporting.forecast_calibration import generate_calibration_artifacts
 from src.reporting.plot_backtests import plot_backtest_errors
 from src.reporting.plot_forecasts import plot_history_and_forecast, plot_transformer_curve
 from src.reporting.qa_reports import save_join_reports, write_qa_report
+from src.reporting.service_date_logic import maybe_write_service_date_impact_reports, write_service_date_logic_reports
 from src.utils.io_utils import ensure_dirs, load_yaml, save_dataframe, save_parquet_safe
 
 LOGGER = logging.getLogger(__name__)
@@ -102,12 +103,15 @@ def run_qa(settings: dict, aliases: dict, regex_rules: dict) -> dict:
         *[{"metric": f"unknown::{key}", "value": value} for key, value in qa_alb["service_classification"]["top_unknown_patterns"].items()],
     ])
     classification_qa.to_csv(QA_DIR / "service_classification_qa.csv", index=False)
+    write_service_date_logic_reports(albaranes, solicitudes)
 
     qa_payload = {
         "albaranes": qa_alb,
         "movimientos": qa_mov,
         "solicitudes": qa_sol,
         "maestro": qa_mae,
+        "service_date_albaranes": qa_alb.get("service_date_logic", {}),
+        "service_date_solicitudes": qa_sol.get("service_date_logic", {}),
         "joins": joins["coverage_global"].to_dict(orient="records"),
         "service_layer": {
             **{row["metric"]: row["value"] for row in service_freshness_report.to_dict(orient="records")},
@@ -756,6 +760,7 @@ def run_consumption(settings: dict, aliases: dict, regex_rules: dict) -> dict:
         run_forecast(settings, aliases, regex_rules)
     context = ensure_processed_context(settings, aliases, regex_rules)
     artifacts = build_consumption_layer(context)
+    maybe_write_service_date_impact_reports()
     return artifacts.__dict__
 
 

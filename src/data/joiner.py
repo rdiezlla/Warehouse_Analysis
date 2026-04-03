@@ -20,8 +20,17 @@ def _coverage_summary(df: pd.DataFrame, matched_col: str, group_col: str | None 
 
 
 def build_join_outputs(albaranes: pd.DataFrame, movimientos: pd.DataFrame, solicitudes: pd.DataFrame, maestro_dedup: pd.DataFrame) -> dict[str, Any]:
+    albaranes_join_columns = [
+        "codigo_servicio",
+        "fecha_servicio",
+        "fecha_servicio_objetiva",
+        "campo_fecha_objetiva_usado",
+        "tipo_servicio",
+        "clase_servicio",
+        "urgencia_norm",
+    ]
     mov_alb = movimientos.merge(
-        albaranes[["codigo_servicio", "fecha_servicio", "tipo_servicio", "clase_servicio", "urgencia_norm"]].drop_duplicates("codigo_servicio"),
+        albaranes[albaranes_join_columns].drop_duplicates("codigo_servicio"),
         left_on="pedido_externo",
         right_on="codigo_servicio",
         how="left",
@@ -30,7 +39,7 @@ def build_join_outputs(albaranes: pd.DataFrame, movimientos: pd.DataFrame, solic
     mov_alb["match_albaranes"] = mov_alb["codigo_servicio"].notna()
 
     sol_alb = solicitudes.merge(
-        albaranes[["codigo_servicio", "fecha_servicio", "tipo_servicio", "clase_servicio", "urgencia_norm"]].drop_duplicates("codigo_servicio"),
+        albaranes[albaranes_join_columns].drop_duplicates("codigo_servicio"),
         left_on="codigo_generico",
         right_on="codigo_servicio",
         how="left",

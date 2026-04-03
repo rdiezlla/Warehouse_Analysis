@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from src.data.service_date_utils import get_service_target_date_column
 from src.main import _best_model_name, _current_run_timestamp, _predict_with_model_name, ensure_processed_context, load_config, load_datasets
 from src.modeling.forecast_tracking import build_actuals_daily, build_actuals_weekly
 from src.modeling.nowcasting import apply_nowcasting, fit_cartera_scalers
@@ -280,8 +281,9 @@ def _build_nowcasting_impact(nowcast_df: pd.DataFrame) -> pd.DataFrame:
 
 def _audit_service_logic() -> tuple[dict[str, float], pd.DataFrame]:
     solicitudes = pd.read_parquet(PROCESSED_DIR / "solicitudes_maestro.parquet")
-    df = solicitudes.dropna(subset=["codigo_generico", "fecha_inicio_evento"]).copy()
-    df["fecha_inicio_evento"] = pd.to_datetime(df["fecha_inicio_evento"]).dt.normalize()
+    target_col = get_service_target_date_column(solicitudes, "fecha_inicio_evento")
+    df = solicitudes.dropna(subset=["codigo_generico", target_col]).copy()
+    df[target_col] = pd.to_datetime(df[target_col]).dt.normalize()
     version_candidates = []
     for column in ["ultima_modificacion", "modificacion_linea", "fecha_creacion", "creacion_solicitud"]:
         if column in df.columns:
@@ -291,18 +293,18 @@ def _audit_service_logic() -> tuple[dict[str, float], pd.DataFrame]:
     summary = (
         df.groupby("codigo_generico")
         .agg(
-            min_fecha=("fecha_inicio_evento", "min"),
-            max_fecha=("fecha_inicio_evento", "max"),
-            n_fechas=("fecha_inicio_evento", "nunique"),
+            min_fecha=(target_col, "min"),
+            max_fecha=(target_col, "max"),
+            n_fechas=(target_col, "nunique"),
             unidades=("cant_solicitada", "sum"),
         )
         .reset_index()
     )
     latest_rows = (
-        df.sort_values(["codigo_generico", "version_ts", "fecha_inicio_evento"])
+        df.sort_values(["codigo_generico", "version_ts", target_col])
         .groupby("codigo_generico", as_index=False)
-        .tail(1)[["codigo_generico", "fecha_inicio_evento"]]
-        .rename(columns={"fecha_inicio_evento": "latest_known_fecha"})
+        .tail(1)[["codigo_generico", target_col]]
+        .rename(columns={target_col: "latest_known_fecha"})
     )
     summary = summary.merge(latest_rows, on="codigo_generico", how="left")
     summary["shift_days_min_to_latest"] = (summary["latest_known_fecha"] - summary["min_fecha"]).dt.days.fillna(0)
@@ -461,13 +463,13 @@ def _build_logic_audit_md(
         "- La lectura debe separarse siempre entre `visible_cartera` y `observado_final`; en servicios recientes domina `visible_cartera` por diseño.",
         "",
         "## Lógica actual de solicitudes por codigo_generico",
-        f"- % códigos con más de una fecha de inicio observada: {logic_metrics['pct_codigos_multi_fecha']:.2%}",
-        f"- % de esos casos donde `min(fecha_inicio_evento)` difiere de la última fecha conocida: {logic_metrics['pct_multi_fecha_min_diff_latest']:.2%}",
+        f"- % códigos con más de una fecha objetivo observada: {logic_metrics['pct_codigos_multi_fecha']:.2%}",
+        f"- % de esos casos donde `min(fecha_objetivo)` difiere de la última fecha conocida: {logic_metrics['pct_multi_fecha_min_diff_latest']:.2%}",
         f"- Desplazamiento mediano `min -> latest`: {logic_metrics['median_shift_days_min_to_latest']:.1f} días",
         f"- P90 desplazamiento `min -> latest`: {logic_metrics['p90_shift_days_min_to_latest']:.1f} días",
         f"- Máximo desplazamiento `min -> latest`: {logic_metrics['max_shift_days_min_to_latest']:.1f} días",
         "",
-        "## Riesgo de sesgo por min(fecha_inicio_evento)",
+        "## Riesgo de sesgo por min(fecha_objetivo)",
         "- Si un mismo `codigo_generico` cambia de fecha, usar siempre el mínimo puede adelantar carga visible respecto al estado vigente.",
         "- La corrección natural, si se decide actuar, sería construir el estado vigente por `codigo_generico` usando la última versión conocida por `ultima_modificacion/modificacion_linea/fecha_creacion` y luego agregar.",
         "",

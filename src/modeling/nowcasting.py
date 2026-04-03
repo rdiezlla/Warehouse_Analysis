@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from src.data.service_date_utils import get_service_target_date_column
 from src.features.cartera_features import build_cartera_snapshot
 from src.modeling.calibration import resolve_nowcasting_weights
 
@@ -10,13 +11,14 @@ from src.modeling.calibration import resolve_nowcasting_weights
 def build_cartera_maturity_curves(fact_cartera: pd.DataFrame, max_horizon: int = 28) -> pd.DataFrame:
     if fact_cartera.empty:
         return pd.DataFrame(columns=["tipo_servicio", "horizonte_dias", "visible_ratio_pedidos"])
-    requests = fact_cartera[["codigo_generico", "fecha_creacion", "fecha_inicio_evento", "tipo_servicio"]].dropna().copy()
-    final_counts = requests.groupby(["fecha_inicio_evento", "tipo_servicio"])["codigo_generico"].nunique().reset_index(name="final_pedidos")
+    target_col = get_service_target_date_column(fact_cartera, "fecha_inicio_evento")
+    requests = fact_cartera[["codigo_generico", "fecha_creacion", target_col, "tipo_servicio"]].dropna().copy()
+    final_counts = requests.groupby([target_col, "tipo_servicio"])["codigo_generico"].nunique().reset_index(name="final_pedidos")
     rows = []
     for horizon in range(0, max_horizon + 1):
-        visible = requests[requests["fecha_creacion"] <= (requests["fecha_inicio_evento"] - pd.to_timedelta(horizon, unit="D"))]
-        visible_counts = visible.groupby(["fecha_inicio_evento", "tipo_servicio"])["codigo_generico"].nunique().reset_index(name="visible_pedidos")
-        merged = final_counts.merge(visible_counts, on=["fecha_inicio_evento", "tipo_servicio"], how="left").fillna({"visible_pedidos": 0})
+        visible = requests[requests["fecha_creacion"] <= (requests[target_col] - pd.to_timedelta(horizon, unit="D"))]
+        visible_counts = visible.groupby([target_col, "tipo_servicio"])["codigo_generico"].nunique().reset_index(name="visible_pedidos")
+        merged = final_counts.merge(visible_counts, on=[target_col, "tipo_servicio"], how="left").fillna({"visible_pedidos": 0})
         merged["visible_ratio_pedidos"] = merged["visible_pedidos"] / merged["final_pedidos"].replace(0, np.nan)
         summary = (
             merged.groupby("tipo_servicio")["visible_ratio_pedidos"]
@@ -43,8 +45,9 @@ def fit_cartera_scalers(actual_service_fact: pd.DataFrame, fact_cartera: pd.Data
         "n_entregas_SGP_dia": "SGP",
         "n_recogidas_EGE_dia": "EGE",
     })
-    cartera = fact_cartera.groupby(["fecha_inicio_evento", "tipo_servicio"])["codigo_generico"].nunique().reset_index(name="pedidos_abiertos")
-    merged = actual.merge(cartera, left_on=["fecha", "tipo_servicio"], right_on=["fecha_inicio_evento", "tipo_servicio"], how="left")
+    target_col = get_service_target_date_column(fact_cartera, "fecha_inicio_evento")
+    cartera = fact_cartera.groupby([target_col, "tipo_servicio"])["codigo_generico"].nunique().reset_index(name="pedidos_abiertos")
+    merged = actual.merge(cartera, left_on=["fecha", "tipo_servicio"], right_on=[target_col, "tipo_servicio"], how="left")
     merged["pedidos_abiertos"] = merged["pedidos_abiertos"].replace(0, pd.NA)
     merged["ratio"] = merged["actual"] / merged["pedidos_abiertos"]
     return merged.groupby("tipo_servicio")["ratio"].median().fillna(1.0).reset_index(name="scaler")

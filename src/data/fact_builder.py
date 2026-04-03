@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from src.data.service_date_utils import build_request_level_service_dates, get_service_target_date_column
 from src.utils.date_utils import monday_of_week
 
 
@@ -26,12 +27,66 @@ def _service_switch_date(settings: dict, albaranes_fact: pd.DataFrame) -> pd.Tim
         raise ValueError("Cannot infer service switch date without albaranes history or explicit config.service_layer.switch_date")
     return pd.Timestamp(last_albaranes_date).normalize() + pd.Timedelta(days=fallback_days)
 
+
+def _build_solicitudes_request_level(solicitudes_maestro: pd.DataFrame) -> pd.DataFrame:
+    df = solicitudes_maestro.copy()
+    target_col = get_service_target_date_column(df, "fecha_inicio_evento")
+    df = df[df[target_col].notna()].copy()
+    if df.empty:
+        return pd.DataFrame(
+            columns=[
+                "codigo_generico",
+                "fecha_creacion",
+                "fecha_inicio_evento",
+                "fecha_fin_evento",
+                "fecha_servicio_objetiva",
+                "tipo_servicio",
+                "clase_servicio",
+                "urgencia_norm",
+                "campo_fecha_objetiva_usado",
+                "flag_fecha_objetiva_fallback",
+                "flag_fecha_objetiva_missing",
+                "lineas_solicitadas",
+                "articulos_distintos",
+                "unidades_solicitadas",
+                "kg_solicitados",
+                "m3_solicitados",
+                "lead_time_dias",
+            ]
+        )
+    if "urgencia_norm" not in df.columns:
+        df["urgencia_norm"] = "UNKNOWN"
+
+    df["cantidad_kg"] = df["cant_solicitada"].fillna(0) * df["kilos"].fillna(0)
+    df["cantidad_m3"] = df["cant_solicitada"].fillna(0) * df["m3"].fillna(0)
+
+    date_selection = build_request_level_service_dates(df)
+    aggregated = (
+        df.groupby("codigo_generico")
+        .agg(
+            fecha_creacion=("fecha_creacion", "min"),
+            lineas_solicitadas=("linea_solicitada", "sum"),
+            articulos_distintos=("codigo_articulo", pd.Series.nunique),
+            unidades_solicitadas=("cant_solicitada", "sum"),
+            kg_solicitados=("cantidad_kg", "sum"),
+            m3_solicitados=("cantidad_m3", "sum"),
+        )
+        .reset_index()
+    )
+    request_level = aggregated.merge(date_selection, on="codigo_generico", how="left")
+    request_level["fecha_servicio_objetiva"] = pd.to_datetime(request_level["fecha_servicio_objetiva"]).dt.normalize()
+    request_level["lead_time_dias"] = (
+        request_level["fecha_servicio_objetiva"] - pd.to_datetime(request_level["fecha_creacion"]).dt.normalize()
+    ).dt.days
+    return request_level
+
 def build_fact_servicio_dia_from_albaranes(albaranes: pd.DataFrame) -> pd.DataFrame:
     df = albaranes.copy()
-    df = df[df["fecha_servicio"].notna()].copy()
+    target_col = get_service_target_date_column(df, "fecha_servicio")
+    df = df[df[target_col].notna()].copy()
     if df.empty:
         return pd.DataFrame(columns=["fecha", *SERVICE_COUNT_COLUMNS, "service_source", "service_truth_status", "is_final_service_truth"])
-    df["fecha"] = df["fecha_servicio"].dt.normalize()
+    df["fecha"] = pd.to_datetime(df[target_col]).dt.normalize()
     df["is_entrega_sge"] = ((df["tipo_servicio"] == "SGE") & (df["clase_servicio"] == "entrega")).astype(int)
     df["is_entrega_sgp"] = ((df["tipo_servicio"] == "SGP") & (df["clase_servicio"] == "entrega")).astype(int)
     df["is_recogida_ege"] = ((df["tipo_servicio"] == "EGE") & (df["clase_servicio"] == "recogida")).astype(int)
@@ -79,31 +134,11 @@ def build_fact_servicio_dia_from_albaranes(albaranes: pd.DataFrame) -> pd.DataFr
 
 
 def build_fact_servicio_dia_from_solicitudes(solicitudes_maestro: pd.DataFrame) -> pd.DataFrame:
-    df = solicitudes_maestro.copy()
-    df = df[df["fecha_inicio_evento"].notna()].copy()
-    if df.empty:
+    request_level = _build_solicitudes_request_level(solicitudes_maestro)
+    if request_level.empty:
         return pd.DataFrame(columns=["fecha", *SERVICE_COUNT_COLUMNS, "service_source", "service_truth_status", "is_final_service_truth"])
-    if "urgencia_norm" not in df.columns:
-        df["urgencia_norm"] = "UNKNOWN"
-
-    df["cantidad_kg"] = df["cant_solicitada"].fillna(0) * df["kilos"].fillna(0)
-    df["cantidad_m3"] = df["cant_solicitada"].fillna(0) * df["m3"].fillna(0)
-    request_level = (
-        df.groupby("codigo_generico")
-        .agg(
-            fecha=("fecha_inicio_evento", "min"),
-            tipo_servicio=("tipo_servicio", lambda x: x.dropna().iloc[0] if x.dropna().any() else "UNK"),
-            clase_servicio=("clase_servicio", lambda x: x.dropna().iloc[0] if x.dropna().any() else "UNK"),
-            urgencia_norm=("urgencia_norm", lambda x: x.dropna().iloc[0] if x.dropna().any() else "UNKNOWN"),
-            lineas_solicitadas=("linea_solicitada", "sum"),
-            articulos_distintos=("codigo_articulo", pd.Series.nunique),
-            unidades_solicitadas=("cant_solicitada", "sum"),
-            kg_solicitados=("cantidad_kg", "sum"),
-            m3_solicitados=("cantidad_m3", "sum"),
-        )
-        .reset_index()
-    )
-    request_level["fecha"] = pd.to_datetime(request_level["fecha"]).dt.normalize()
+    request_level = request_level.copy()
+    request_level["fecha"] = pd.to_datetime(request_level["fecha_servicio_objetiva"]).dt.normalize()
     request_level["is_entrega_sge"] = ((request_level["tipo_servicio"] == "SGE") & (request_level["clase_servicio"] == "entrega")).astype(int)
     request_level["is_entrega_sgp"] = ((request_level["tipo_servicio"] == "SGP") & (request_level["clase_servicio"] == "entrega")).astype(int)
     request_level["is_recogida_ege"] = ((request_level["tipo_servicio"] == "EGE") & (request_level["clase_servicio"] == "recogida")).astype(int)
@@ -219,27 +254,11 @@ def build_fact_picking_dia(movimientos_maestro: pd.DataFrame, heavy_item_kg: flo
 
 
 def build_fact_cartera(solicitudes_maestro: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    df = solicitudes_maestro.copy()
-    df["cantidad_kg"] = df["cant_solicitada"].fillna(0) * df["kilos"].fillna(0)
-    df["cantidad_m3"] = df["cant_solicitada"].fillna(0) * df["m3"].fillna(0)
-    request_level = (
-        df.groupby("codigo_generico")
-        .agg(
-            fecha_creacion=("fecha_creacion", "min"),
-            fecha_inicio_evento=("fecha_inicio_evento", "min"),
-            tipo_servicio=("tipo_servicio", lambda x: x.dropna().iloc[0] if x.dropna().any() else "UNK"),
-            clase_servicio=("clase_servicio", lambda x: x.dropna().iloc[0] if x.dropna().any() else "UNK"),
-            lineas_solicitadas=("linea_solicitada", "sum"),
-            articulos_distintos=("codigo_articulo", pd.Series.nunique),
-            unidades_solicitadas=("cant_solicitada", "sum"),
-            kg_solicitados=("cantidad_kg", "sum"),
-            m3_solicitados=("cantidad_m3", "sum"),
-        )
-        .reset_index()
-    )
-    request_level["lead_time_dias"] = (request_level["fecha_inicio_evento"] - request_level["fecha_creacion"]).dt.days
+    request_level = _build_solicitudes_request_level(solicitudes_maestro)
+    target_col = get_service_target_date_column(request_level, "fecha_inicio_evento")
+    request_level["lead_time_dias"] = (pd.to_datetime(request_level[target_col]) - pd.to_datetime(request_level["fecha_creacion"]).dt.normalize()).dt.days
     by_target_date = (
-        request_level.groupby(["fecha_inicio_evento", "tipo_servicio", "clase_servicio"]).agg(
+        request_level.groupby([target_col, "tipo_servicio", "clase_servicio"]).agg(
             pedidos_abiertos=("codigo_generico", "nunique"),
             lineas_solicitadas=("lineas_solicitadas", "sum"),
             articulos_distintos=("articulos_distintos", "sum"),
@@ -248,14 +267,14 @@ def build_fact_cartera(solicitudes_maestro: pd.DataFrame) -> tuple[pd.DataFrame,
             m3_solicitados=("m3_solicitados", "sum"),
         )
         .reset_index()
-        .rename(columns={"fecha_inicio_evento": "fecha_objetivo"})
+        .rename(columns={target_col: "fecha_objetivo"})
     )
 
     horizons = []
-    valid = request_level.dropna(subset=["fecha_creacion", "fecha_inicio_evento"]).copy()
+    valid = request_level.dropna(subset=["fecha_creacion", target_col]).copy()
     for horizon in range(1, 29):
         snapshot = valid.copy()
-        snapshot["fecha_snapshot"] = snapshot["fecha_inicio_evento"] - pd.to_timedelta(horizon, unit="D")
+        snapshot["fecha_snapshot"] = snapshot[target_col] - pd.to_timedelta(horizon, unit="D")
         snapshot["horizonte_dias"] = horizon
         horizons.append(snapshot[["fecha_snapshot", "horizonte_dias", "tipo_servicio", "codigo_generico"]])
     by_horizon = (
