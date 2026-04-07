@@ -232,14 +232,56 @@ def _build_consumo_forecast_semanal(pipeline_run_id: str) -> pd.DataFrame:
     return output.drop_duplicates(subset=["week_start_date", "kpi"], keep="last")
 
 
-def _build_vs_2024_daily(actuals_daily: pd.DataFrame) -> pd.DataFrame:
-    current_year = int(pd.to_datetime(actuals_daily["target_date"]).dt.year.max())
+def _latest_year_from_series(date_series: list[pd.Series]) -> int:
+    dates = pd.concat([pd.to_datetime(series, errors="coerce") for series in date_series], ignore_index=True).dropna()
+    if dates.empty:
+        raise ValueError("No valid dates available to build vs 2024 tables.")
+    return int(dates.dt.year.max())
+
+
+def _daily_vs_2024_base(actuals_daily: pd.DataFrame, forecast_daily_base: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    current_year = _latest_year_from_series([actuals_daily["target_date"], forecast_daily_base["fecha"]])
+    current_actual_base = actuals_daily[
+        (pd.to_datetime(actuals_daily["target_date"]).dt.year == current_year)
+        & (actuals_daily["kpi"].isin(MAIN_KPIS))
+    ][["target_date", "kpi"]].copy()
+    forecast_base = forecast_daily_base[forecast_daily_base["kpi"].isin(MAIN_KPIS)][["fecha", "kpi"]].rename(
+        columns={"fecha": "target_date"}
+    )
+    base = pd.concat([current_actual_base, forecast_base], ignore_index=True)
+    base["target_date"] = pd.to_datetime(base["target_date"], errors="coerce").dt.normalize()
+    base = base[base["target_date"].notna()].drop_duplicates(subset=["target_date", "kpi"])
+    return base, current_year
+
+
+def _weekly_vs_2024_base(actuals_weekly: pd.DataFrame, forecast_weekly_base: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    current_year = _latest_year_from_series([actuals_weekly["target_date"], forecast_weekly_base["week_start_date"]])
+    current_actual_base = actuals_weekly[
+        (pd.to_datetime(actuals_weekly["target_date"]).dt.year == current_year)
+        & (actuals_weekly["kpi"].isin(MAIN_KPIS))
+    ][["target_date", "kpi"]].copy()
+    forecast_base = forecast_weekly_base[forecast_weekly_base["kpi"].isin(MAIN_KPIS)][
+        ["week_start_date", "kpi"]
+    ].rename(columns={"week_start_date": "target_date"})
+    base = pd.concat([current_actual_base, forecast_base], ignore_index=True)
+    base["target_date"] = pd.to_datetime(base["target_date"], errors="coerce").dt.normalize()
+    base = base[base["target_date"].notna()].drop_duplicates(subset=["target_date", "kpi"])
+    return base, current_year
+
+
+def _build_vs_2024_daily(actuals_daily: pd.DataFrame, forecast_daily_base: pd.DataFrame) -> pd.DataFrame:
+    base, current_year = _daily_vs_2024_base(actuals_daily, forecast_daily_base)
     current = actuals_daily[pd.to_datetime(actuals_daily["target_date"]).dt.year == current_year].copy()
     current = current[current["kpi"].isin(MAIN_KPIS)].copy()
     ref_2024 = actuals_daily[pd.to_datetime(actuals_daily["target_date"]).dt.year == 2024].copy()
     ref_2024 = ref_2024[ref_2024["kpi"].isin(MAIN_KPIS)].copy()
-    current["comparison_date_2024"] = current["target_date"].map(_map_same_calendar_date_to_2024)
-    output = current.merge(
+    output = base.merge(
+        current[["target_date", "kpi", "actual_value", "actual_source", "actual_truth_status"]],
+        on=["target_date", "kpi"],
+        how="left",
+    )
+    output["comparison_date_2024"] = output["target_date"].map(_map_same_calendar_date_to_2024)
+    output = output.merge(
         ref_2024.rename(
             columns={
                 "target_date": "comparison_date_2024",
@@ -285,14 +327,21 @@ def _build_vs_2024_daily(actuals_daily: pd.DataFrame) -> pd.DataFrame:
     ].sort_values(["fecha", "kpi"])
 
 
-def _build_vs_2024_weekly(actuals_weekly: pd.DataFrame) -> pd.DataFrame:
+def _build_vs_2024_weekly(actuals_weekly: pd.DataFrame, forecast_weekly_base: pd.DataFrame) -> pd.DataFrame:
     weekly = actuals_weekly[actuals_weekly["kpi"].isin(MAIN_KPIS)].copy()
     weekly["iso_week"] = pd.to_datetime(weekly["target_date"]).dt.isocalendar().week.astype(int)
     weekly["iso_year"] = pd.to_datetime(weekly["target_date"]).dt.isocalendar().year.astype(int)
-    current_year = int(pd.to_datetime(weekly["target_date"]).dt.year.max())
+    base, current_year = _weekly_vs_2024_base(weekly, forecast_weekly_base)
     current = weekly[pd.to_datetime(weekly["target_date"]).dt.year == current_year].copy()
     ref_2024 = weekly[weekly["iso_year"] == 2024].copy()
-    output = current.merge(
+    output = base.merge(
+        current[["target_date", "kpi", "actual_value", "actual_source", "actual_truth_status"]],
+        on=["target_date", "kpi"],
+        how="left",
+    )
+    output["iso_week"] = pd.to_datetime(output["target_date"]).dt.isocalendar().week.astype(int)
+    output["iso_year"] = pd.to_datetime(output["target_date"]).dt.isocalendar().year.astype(int)
+    output = output.merge(
         ref_2024.rename(
             columns={
                 "actual_value": "actual_value_2024",
@@ -472,6 +521,23 @@ def _build_consumo_progreso_actual(
     return pd.DataFrame(progress_rows).sort_values(["tipo_periodo", "kpi"])
 
 
+def _count_missing_forecast_vs_2024_keys(
+    forecast_base: pd.DataFrame,
+    vs_2024: pd.DataFrame,
+    forecast_date_column: str,
+    vs_date_column: str,
+) -> int:
+    forecast_keys = forecast_base[forecast_base["kpi"].isin(MAIN_KPIS)][[forecast_date_column, "kpi"]].copy()
+    forecast_keys = forecast_keys.rename(columns={forecast_date_column: "period_start"})
+    forecast_keys["period_start"] = pd.to_datetime(forecast_keys["period_start"], errors="coerce").dt.normalize()
+    forecast_keys = forecast_keys[forecast_keys["period_start"].notna()].drop_duplicates()
+    vs_keys = vs_2024[[vs_date_column, "kpi"]].copy().rename(columns={vs_date_column: "period_start"})
+    vs_keys["period_start"] = pd.to_datetime(vs_keys["period_start"], errors="coerce").dt.normalize()
+    vs_keys = vs_keys[vs_keys["period_start"].notna()].drop_duplicates()
+    missing = forecast_keys.merge(vs_keys, on=["period_start", "kpi"], how="left", indicator=True)
+    return int(missing["_merge"].eq("left_only").sum())
+
+
 def _build_validations(
     consumo_forecast_diario: pd.DataFrame,
     consumo_forecast_semanal: pd.DataFrame,
@@ -538,6 +604,32 @@ def _build_validations(
             "detail": f"Duplicados semanal: {int(consumo_forecast_semanal.duplicated(subset=['week_start_date', 'kpi']).sum())}",
         }
     )
+    missing_daily_vs_keys = _count_missing_forecast_vs_2024_keys(
+        consumo_forecast_diario,
+        consumo_vs_2024_diario,
+        "fecha",
+        "fecha",
+    )
+    validations.append(
+        {
+            "check_name": "daily_forecast_vs_2024_key_coverage",
+            "status": "ok" if missing_daily_vs_keys == 0 else "error",
+            "detail": f"Fechas forecast sin fila vs 2024 diaria: {missing_daily_vs_keys}",
+        }
+    )
+    missing_weekly_vs_keys = _count_missing_forecast_vs_2024_keys(
+        consumo_forecast_semanal,
+        consumo_vs_2024_semanal,
+        "week_start_date",
+        "week_start_date",
+    )
+    validations.append(
+        {
+            "check_name": "weekly_forecast_vs_2024_key_coverage",
+            "status": "ok" if missing_weekly_vs_keys == 0 else "error",
+            "detail": f"Semanas forecast sin fila vs 2024 semanal: {missing_weekly_vs_keys}",
+        }
+    )
     return pd.DataFrame(validations)
 
 
@@ -568,6 +660,7 @@ def _write_audit(
         "- Semanal: 1 fila por `week_start_date + kpi`.",
         "- Vs 2024 diario: 1 fila por `fecha + kpi`.",
         "- Vs 2024 semanal: 1 fila por `week_start_date + kpi`.",
+        "- Vs 2024 se construye sobre las fechas actuales disponibles y las fechas forecast visibles del ultimo run, para no perder referencias de periodos futuros operativos.",
         "- Progreso actual: 1 fila por `tipo_periodo + kpi` para `day/week/month`.",
         "- Progreso actual incluye columnas de cobertura del plan historico para que la web futura sepa si el acumulado forecastado es plenamente comparable.",
         "",
@@ -629,8 +722,8 @@ def build_consumption_layer(context: dict) -> ConsumptionArtifacts:
 
     consumo_forecast_diario = _build_consumo_forecast_diario(pipeline_run_id)
     consumo_forecast_semanal = _build_consumo_forecast_semanal(pipeline_run_id)
-    consumo_vs_2024_diario = _build_vs_2024_daily(actuals_daily)
-    consumo_vs_2024_semanal = _build_vs_2024_weekly(actuals_weekly)
+    consumo_vs_2024_diario = _build_vs_2024_daily(actuals_daily, consumo_forecast_diario)
+    consumo_vs_2024_semanal = _build_vs_2024_weekly(actuals_weekly, consumo_forecast_semanal)
     dim_kpi = _load_dim_kpi()
     current_daily_for_progress = consumo_forecast_diario.rename(columns={"fecha": "target_date"})[["target_date", "kpi", "forecast_value"]].copy()
     current_daily_for_progress = current_daily_for_progress.rename(columns={"target_date": "fecha"})
