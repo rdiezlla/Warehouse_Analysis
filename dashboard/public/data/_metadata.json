@@ -1,12 +1,12 @@
 {
   "sourceMode": "consumption_outputs",
-  "sourcePath": "C:\\Users\\rocio\\Desktop\\proyectos\\Warehouse_Analysis\\outputs\\consumption",
-  "syncedAt": "2026-04-07T20:10:03.702Z",
+  "sourcePath": "/workspace/outputs/consumption",
+  "syncedAt": "2026-04-08T11:46:10.128Z",
   "tables": {
     "consumo_forecast_diario": 140,
     "consumo_forecast_semanal": 25,
-    "consumo_vs_2024_diario": 1331,
-    "consumo_vs_2024_semanal": 190,
+    "consumo_vs_2024_diario": 1251,
+    "consumo_vs_2024_semanal": 181,
     "consumo_progreso_actual": 15,
     "dim_kpi": 5
   }

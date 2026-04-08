@@ -67,6 +67,80 @@ Set-Location .\dashboard
 .\start-dev.cmd --install
 ```
 
+## Desarrollo y build con Docker
+
+No necesitas Node.js instalado en el host si tienes Docker Desktop + Docker Compose.
+
+### Desarrollo con Docker
+
+Desde la raiz del repo:
+
+```bash
+docker compose up --build dashboard-dev
+```
+
+En Windows:
+
+```powershell
+Set-Location .\dashboard
+.\docker-dev.ps1
+```
+
+o
+
+```cmd
+cd dashboard
+docker-dev.cmd
+```
+
+Abrir:
+- `http://localhost:5173`
+
+Notas:
+- El contenedor monta el repo completo en `/workspace`.
+- `outputs/consumption` queda disponible dentro del contenedor para `npm run sync:data`.
+- `node_modules` se guarda en un volumen Docker para evitar problemas tipicos de Windows.
+- Los cambios locales en `dashboard/src` se reflejan en el navegador via Vite dev server.
+
+### Compilar con Docker
+
+Desde la raiz del repo:
+
+```bash
+docker compose run --rm dashboard-build
+```
+
+En Windows:
+
+```powershell
+Set-Location .\dashboard
+.\docker-build.ps1
+```
+
+o
+
+```cmd
+cd dashboard
+docker-build.cmd
+```
+
+Salida:
+- `dashboard/dist/`
+
+### Parar el entorno Docker
+
+Desde la raiz del repo:
+
+```bash
+docker compose stop dashboard-dev
+```
+
+o
+
+```bash
+docker compose down
+```
+
 ## Comandos rapidos
 
 ### A) Pipeline + web (actualiza forecast y levanta dashboard)
@@ -126,6 +200,15 @@ npm.cmd run build:release
 Salida:
 - `dashboard/dist/`
 
+### C bis) Compilar release sin Node en host
+
+```bash
+docker compose run --rm dashboard-build
+```
+
+La build queda igualmente en:
+- `dashboard/dist/`
+
 ### D) Ver build compilada en local
 
 ```bash
@@ -160,6 +243,23 @@ powershell -ExecutionPolicy Bypass -File .\serve-dist.ps1 -Port 8080 -Root ..\di
 
 Abrir:
 - `http://localhost:8080`
+
+## Caso de uso sin Node en el host
+
+Si en el ordenador solo tienes Docker:
+
+1. Genera o actualiza `outputs/consumption` con el pipeline.
+2. Lanza:
+
+```bash
+docker compose run --rm dashboard-build
+```
+
+3. La build final queda en:
+- `dashboard/dist/`
+
+4. Puedes copiar `dist/` y servirlo en otro equipo con:
+- `deploy/serve-dist.ps1`
 
 ## Scripts
 

@@ -7,6 +7,7 @@ Pipeline de forecasting operativo + dashboard web (modulo Forecast).
 Maquina de desarrollo:
 - Python 3.11+ (recomendado)
 - Node.js 20+ y npm
+- Docker Desktop + Docker Compose (opcional, recomendado para compilar la web sin Node en host)
 
 Maquina de visualizacion sin Node:
 - Solo navegador
@@ -97,6 +98,38 @@ npm.cmd run build:release
 Salida:
 - `dashboard/dist/`
 
+### E) Desarrollo web con Docker
+
+```bash
+docker compose up --build dashboard-dev
+```
+
+En Windows PowerShell:
+
+```powershell
+Set-Location .\dashboard
+.\docker-dev.ps1
+```
+
+Abrir:
+- `http://localhost:5173`
+
+### F) Compilar web con Docker
+
+```bash
+docker compose run --rm dashboard-build
+```
+
+En Windows PowerShell:
+
+```powershell
+Set-Location .\dashboard
+.\docker-build.ps1
+```
+
+Salida:
+- `dashboard/dist/`
+
 ### D) Ver la build compilada en local
 
 ```bash
@@ -131,6 +164,26 @@ powershell -ExecutionPolicy Bypass -File .\serve-dist.ps1 -Port 8080 -Root ..\di
 
 Abrir:
 - `http://localhost:8080`
+
+## 4 bis) Caso sin Node instalado en el host
+
+Si el equipo solo tiene Docker:
+
+1. Deja listo `outputs/consumption` con el pipeline.
+2. Ejecuta:
+
+```bash
+docker compose run --rm dashboard-build
+```
+
+3. La build queda en:
+- `dashboard/dist/`
+
+4. Si quieres revisar en desarrollo sin Node:
+
+```bash
+docker compose up --build dashboard-dev
+```
 
 ## 5) Cuando se actualizan datos (operativa recomendada)
 
@@ -177,6 +230,21 @@ El dashboard consume desde `outputs/consumption`:
 - `dim_kpi`
 
 Si faltan tablas minimas, `sync:data` genera un modo demo para evitar rotura visual.
+
+## 8) Docker para dashboard
+
+Archivos:
+- `dashboard/Dockerfile`
+- `docker-compose.yml`
+- `dashboard/docker-dev.ps1`
+- `dashboard/docker-dev.cmd`
+- `dashboard/docker-build.ps1`
+- `dashboard/docker-build.cmd`
+
+Politica:
+- El flujo tradicional con Node sigue intacto.
+- Docker solo añade una via portable para desarrollo y build del dashboard.
+- El contenedor monta el repo y accede a `outputs/consumption` para `npm run sync:data`.
 
 ## 7) Ubicacion de ingesta de Excel
 

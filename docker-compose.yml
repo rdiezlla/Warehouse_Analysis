@@ -1,0 +1,41 @@
+services:
+  dashboard-dev:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: warehouse-analysis-dashboard-dev
+    working_dir: /workspace/dashboard
+    command: ["dev"]
+    environment:
+      WA_CONSUMPTION_DIR: /workspace/outputs/consumption
+      HOST: 0.0.0.0
+      PORT: 5173
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./:/workspace
+      - dashboard_node_modules:/workspace/dashboard/node_modules
+      - dashboard_npm_cache:/root/.npm
+    init: true
+    stdin_open: true
+    tty: true
+
+  dashboard-build:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: warehouse-analysis-dashboard-build
+    working_dir: /workspace/dashboard
+    command: ["build"]
+    environment:
+      WA_CONSUMPTION_DIR: /workspace/outputs/consumption
+    volumes:
+      - ./:/workspace
+      - dashboard_node_modules:/workspace/dashboard/node_modules
+      - dashboard_npm_cache:/root/.npm
+    init: true
+
+volumes:
+  dashboard_node_modules:
+  dashboard_npm_cache:
