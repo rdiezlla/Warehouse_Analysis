@@ -1,272 +1,64 @@
-# Warehouse Analysis Dashboard (V1 - Forecast)
+# Dashboard Forecast
 
-Dashboard web moderno para comparar `actual vs forecast vs 2024`.
+La única vía oficial para desarrollar y compilar esta web es Docker.
 
-## Stack
+## Requisitos
 
-- React 19
-- Vite
-- TypeScript
-- Tailwind CSS v4
-- Recharts
+- Docker Desktop o equivalente con `docker compose`
+- `outputs/consumption` generado si quieres trabajar con datos reales
 
-## Estructura
+## Desarrollo oficial
 
-```text
-dashboard/
-  deploy/
-    serve-dist.ps1
-  public/
-    data/
-  scripts/
-    sync-consumption-data.mjs
-  src/
-    app/
-    components/
-    features/forecast/
-    layouts/
-    pages/
-    services/
-    styles/
-    types/
-    utils/
-```
-
-## Datos que consume Forecast
-
-Origen principal:
-- `../outputs/consumption`
-
-Tablas:
-- `consumo_forecast_diario`
-- `consumo_forecast_semanal`
-- `consumo_vs_2024_diario`
-- `consumo_vs_2024_semanal`
-- `consumo_progreso_actual`
-- `dim_kpi`
-
-`npm run sync:data`:
-1. Lee JSON/CSV de `outputs/consumption`.
-2. Genera/actualiza `public/data/*.json`.
-3. Actualiza `public/data/_metadata.json`.
-
-Nota Windows:
-- Si `npm` falla en PowerShell con `npm.ps1` bloqueado, usa `npm.cmd` o `start-dev.cmd`.
-
-## Primera vez (solo frontend)
-
-```bash
-cd dashboard
-npm install
-```
-
-En Windows PowerShell:
-
-```powershell
-Set-Location .\dashboard
-.\start-dev.cmd --install
-```
-
-## Desarrollo y build con Docker
-
-No necesitas Node.js instalado en el host si tienes Docker Desktop + Docker Compose.
-
-### Desarrollo con Docker
-
-Desde la raiz del repo:
+Desde la raíz del repo:
 
 ```bash
 docker compose up --build dashboard-dev
 ```
 
-En Windows:
-
-```powershell
-Set-Location .\dashboard
-.\docker-dev.ps1
-```
-
-o
-
-```cmd
-cd dashboard
-docker-dev.cmd
-```
+Wrappers:
+- Windows PowerShell: [docker-dev.ps1](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-dev.ps1)
+- Windows CMD: [docker-dev.cmd](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-dev.cmd)
+- macOS/Linux: [docker-dev.sh](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-dev.sh)
 
 Abrir:
-- `http://localhost:5173`
+- [http://localhost:5173](http://localhost:5173)
 
-Notas:
-- El contenedor monta el repo completo en `/workspace`.
-- `outputs/consumption` queda disponible dentro del contenedor para `npm run sync:data`.
-- `node_modules` se guarda en un volumen Docker para evitar problemas tipicos de Windows.
-- Los cambios locales en `dashboard/src` se reflejan en el navegador via Vite dev server.
-
-### Compilar con Docker
-
-Desde la raiz del repo:
-
-```bash
-docker compose run --rm dashboard-build
-```
-
-En Windows:
-
-```powershell
-Set-Location .\dashboard
-.\docker-build.ps1
-```
-
-o
-
-```cmd
-cd dashboard
-docker-build.cmd
-```
-
-Salida:
-- `dashboard/dist/`
-
-### Parar el entorno Docker
-
-Desde la raiz del repo:
-
-```bash
-docker compose stop dashboard-dev
-```
-
-o
+Parar:
 
 ```bash
 docker compose down
 ```
 
-## Comandos rapidos
+## Build oficial
 
-### A) Pipeline + web (actualiza forecast y levanta dashboard)
-
-```bash
-python -m src.main --stage all
-python -m src.main --stage consumption
-cd dashboard
-npm run sync:data
-npm run dev
-```
-
-En Windows PowerShell:
-
-```powershell
-Set-Location ..
-.\run-pipeline.cmd all
-.\run-pipeline.cmd consumption
-Set-Location .\dashboard
-.\start-dev.cmd
-```
-
-Abrir:
-- `http://localhost:5173`
-
-### B) Solo web (si ya tienes los datos)
+Desde la raíz del repo:
 
 ```bash
-cd dashboard
-npm run dev
+docker compose run --rm dashboard-build
 ```
 
-En Windows PowerShell:
-
-```powershell
-Set-Location .\dashboard
-.\start-dev.cmd
-```
-
-Abrir:
-- `http://localhost:5173`
-
-### C) Compilar release
-
-```bash
-cd dashboard
-npm run build:release
-```
-
-En Windows PowerShell:
-
-```powershell
-Set-Location .\dashboard
-npm.cmd run build:release
-```
+Wrappers:
+- Windows PowerShell: [docker-build.ps1](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-build.ps1)
+- Windows CMD: [docker-build.cmd](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-build.cmd)
+- macOS/Linux: [docker-build.sh](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-build.sh)
 
 Salida:
-- `dashboard/dist/`
+- [dist](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\dist)
 
-### C bis) Compilar release sin Node en host
+## Datos
 
-```bash
-docker compose run --rm dashboard-build
-```
+El contenedor ejecuta internamente:
+- `npm run sync:data`
+- `npm run dev`
+- `npm run build:release`
 
-La build queda igualmente en:
-- `dashboard/dist/`
+La fuente de datos esperada es:
+- `../outputs/consumption`
 
-### D) Ver build compilada en local
+Si la capa de consumo no existe o está incompleta, `sync:data` cae al modo demo del proyecto.
 
-```bash
-cd dashboard
-npm run preview
-```
+## Scripts internos
 
-En Windows PowerShell:
+Los scripts `npm` de [package.json](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\package.json) se mantienen porque Docker los usa dentro del contenedor.
 
-```powershell
-Set-Location .\dashboard
-npm.cmd run preview
-```
-
-Abrir:
-- `http://localhost:4173`
-
-Nota:
-- `npm run dev` compila automaticamente en memoria con hot reload.
-
-## Despliegue en Windows sin Node
-
-Copiar al equipo destino:
-- `dist/`
-- `deploy/serve-dist.ps1`
-
-Ejecutar en PowerShell (desde `deploy`):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\serve-dist.ps1 -Port 8080 -Root ..\dist
-```
-
-Abrir:
-- `http://localhost:8080`
-
-## Caso de uso sin Node en el host
-
-Si en el ordenador solo tienes Docker:
-
-1. Genera o actualiza `outputs/consumption` con el pipeline.
-2. Lanza:
-
-```bash
-docker compose run --rm dashboard-build
-```
-
-3. La build final queda en:
-- `dashboard/dist/`
-
-4. Puedes copiar `dist/` y servirlo en otro equipo con:
-- `deploy/serve-dist.ps1`
-
-## Scripts
-
-- `npm run dev`: desarrollo Vite
-- `.\start-dev.cmd`: arranque recomendado en Windows PowerShell
-- `npm run sync:data`: sincroniza outputs de consumo a `public/data`
-- `npm run dev:with-data`: sync + dev
-- `npm run build`: build frontend
-- `npm run build:release`: sync + build
-- `npm run preview`: servir build local (requiere Node)
+No se consideran flujo oficial para ejecutar la web directamente en el host.
