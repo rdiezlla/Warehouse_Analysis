@@ -4,9 +4,15 @@ import type {
   ConsumoVs2024DiarioRow,
   ConsumoVs2024SemanalRow,
   ForecastChartModel,
+  ForecastChartPoint,
+  ForecastChartViewId,
+  ForecastChartViewModel,
   KpiCardModel,
   KpiCode,
   KpiGroupDefinition,
+  KpiGroupId,
+  PickingChartViewId,
+  ServicesChartViewId,
 } from '@/types/forecast'
 import { sortDates, toQuarter, toYear } from '@/utils/date'
 import { formatWeekLabel } from '@/utils/formatters'
@@ -15,6 +21,14 @@ type AggregatedValuePoint = {
   actual: number | null
   forecast: number | null
   value2024: number | null
+}
+
+type GroupedValuesByKpi = Partial<Record<KpiGroupId, AggregatedValuePoint>>
+
+type ChartViewDefinition<TViewId extends string> = {
+  id: TViewId
+  label: string
+  groupIds: KpiGroupId[]
 }
 
 const mergeNullable = (
@@ -29,6 +43,27 @@ const mergeNullable = (
   }
   return current + nextValue
 }
+
+const createEmptyAggregatedValuePoint = (): AggregatedValuePoint => ({
+  actual: null,
+  forecast: null,
+  value2024: null,
+})
+
+const hasAggregatedValue = (point: AggregatedValuePoint): boolean =>
+  point.actual !== null || point.forecast !== null || point.value2024 !== null
+
+const sumAggregatedValuePoints = (
+  points: AggregatedValuePoint[],
+): AggregatedValuePoint =>
+  points.reduce<AggregatedValuePoint>(
+    (accumulator, point) => ({
+      actual: mergeNullable(accumulator.actual, point.actual),
+      forecast: mergeNullable(accumulator.forecast, point.forecast),
+      value2024: mergeNullable(accumulator.value2024, point.value2024),
+    }),
+    createEmptyAggregatedValuePoint(),
+  )
 
 const safeRatio = (
   actualValue: number | null,
@@ -73,20 +108,42 @@ export const KPI_GROUPS: KpiGroupDefinition[] = [
   },
 ]
 
-const PRIMARY_CHART_GROUP_IDS: Array<KpiGroupDefinition['id']> = [
-  'entregas',
-  'recogidas',
-  'lineas_preparadas',
-]
-
 const ALL_QUARTERS = [1, 2, 3, 4] as const
 
 const KPI_TO_GROUP = new Map<KpiCode, KpiGroupDefinition['id']>(
   KPI_GROUPS.flatMap((group) => group.kpis.map((kpi) => [kpi, group.id] as const)),
 )
 
-export const getPrimaryChartGroups = (): KpiGroupDefinition[] =>
-  KPI_GROUPS.filter((group) => PRIMARY_CHART_GROUP_IDS.includes(group.id))
+const SERVICES_CHART_VIEWS: ChartViewDefinition<ServicesChartViewId>[] = [
+  {
+    id: 'entregas',
+    label: 'Entregas',
+    groupIds: ['entregas'],
+  },
+  {
+    id: 'recogidas',
+    label: 'Recogidas',
+    groupIds: ['recogidas'],
+  },
+  {
+    id: 'entregas_recogidas',
+    label: 'Entregas + Recogidas',
+    groupIds: ['entregas', 'recogidas'],
+  },
+]
+
+const PICKING_CHART_VIEWS: ChartViewDefinition<PickingChartViewId>[] = [
+  {
+    id: 'lineas',
+    label: 'Líneas',
+    groupIds: ['lineas_preparadas'],
+  },
+  {
+    id: 'unidades',
+    label: 'Unidades',
+    groupIds: ['unidades_preparadas'],
+  },
+]
 
 export const getAvailableQuarters = (): number[] => [...ALL_QUARTERS]
 
@@ -154,12 +211,12 @@ const buildDailyValuesByGroup = (
   forecastRows: ConsumoForecastDiarioRow[],
   vsRows: ConsumoVs2024DiarioRow[],
   selectedQuarters: number[],
-): Map<string, Record<string, AggregatedValuePoint>> => {
+): Map<string, GroupedValuesByKpi> => {
   const analysisYear = getAnalysisYearFromDates([
     ...forecastRows.map((row) => row.fecha),
     ...vsRows.map((row) => row.fecha),
   ])
-  const rowsByDate = new Map<string, Record<string, AggregatedValuePoint>>()
+  const rowsByDate = new Map<string, GroupedValuesByKpi>()
 
   for (const row of forecastRows) {
     if (!shouldIncludeDate(row.fecha, analysisYear, selectedQuarters)) {
@@ -172,11 +229,7 @@ const buildDailyValuesByGroup = (
     }
 
     const byGroup = rowsByDate.get(row.fecha) ?? {}
-    const point = byGroup[groupId] ?? {
-      actual: null,
-      forecast: null,
-      value2024: null,
-    }
+    const point = byGroup[groupId] ?? createEmptyAggregatedValuePoint()
     byGroup[groupId] = {
       ...point,
       actual: mergeNullable(point.actual, row.actual_value),
@@ -196,11 +249,7 @@ const buildDailyValuesByGroup = (
     }
 
     const byGroup = rowsByDate.get(row.fecha) ?? {}
-    const point = byGroup[groupId] ?? {
-      actual: null,
-      forecast: null,
-      value2024: null,
-    }
+    const point = byGroup[groupId] ?? createEmptyAggregatedValuePoint()
     byGroup[groupId] = {
       actual: mergeNullable(point.actual, row.actual_value_current),
       forecast: point.forecast,
@@ -216,12 +265,12 @@ const buildWeeklyValuesByGroup = (
   forecastRows: ConsumoForecastSemanalRow[],
   vsRows: ConsumoVs2024SemanalRow[],
   selectedQuarters: number[],
-): Map<string, Record<string, AggregatedValuePoint>> => {
+): Map<string, GroupedValuesByKpi> => {
   const analysisYear = getAnalysisYearFromDates([
     ...forecastRows.map((row) => row.week_start_date),
     ...vsRows.map((row) => row.week_start_date),
   ])
-  const rowsByWeek = new Map<string, Record<string, AggregatedValuePoint>>()
+  const rowsByWeek = new Map<string, GroupedValuesByKpi>()
 
   for (const row of forecastRows) {
     if (!shouldIncludeDate(row.week_start_date, analysisYear, selectedQuarters)) {
@@ -234,11 +283,7 @@ const buildWeeklyValuesByGroup = (
     }
 
     const byGroup = rowsByWeek.get(row.week_start_date) ?? {}
-    const point = byGroup[groupId] ?? {
-      actual: null,
-      forecast: null,
-      value2024: null,
-    }
+    const point = byGroup[groupId] ?? createEmptyAggregatedValuePoint()
     byGroup[groupId] = {
       ...point,
       actual: mergeNullable(point.actual, row.actual_value),
@@ -258,11 +303,7 @@ const buildWeeklyValuesByGroup = (
     }
 
     const byGroup = rowsByWeek.get(row.week_start_date) ?? {}
-    const point = byGroup[groupId] ?? {
-      actual: null,
-      forecast: null,
-      value2024: null,
-    }
+    const point = byGroup[groupId] ?? createEmptyAggregatedValuePoint()
     byGroup[groupId] = {
       actual: mergeNullable(point.actual, row.actual_value_current),
       forecast: point.forecast,
@@ -339,34 +380,62 @@ export const buildWeeklyChartModels = (
   const rowsByWeek = buildWeeklyValuesByGroup(forecastRows, vsRows, selectedQuarters)
   const sortedWeeks = sortDates([...rowsByWeek.keys()])
 
-  return getPrimaryChartGroups().map((group) => {
+  const buildPointsForGroups = (groupIds: KpiGroupId[]): ForecastChartPoint[] => {
     const groupWeeks = sortedWeeks.filter((weekStartDate) => {
-      const point = rowsByWeek.get(weekStartDate)?.[group.id]
-      return (
-        point?.actual !== null ||
-        point?.forecast !== null ||
-        point?.value2024 !== null
+      const aggregatedPoint = sumAggregatedValuePoints(
+        groupIds.map(
+          (groupId) =>
+            rowsByWeek.get(weekStartDate)?.[groupId] ?? createEmptyAggregatedValuePoint(),
+        ),
       )
+
+      return hasAggregatedValue(aggregatedPoint)
     })
 
-    return {
-      id: group.id,
-      title: group.label,
-      points: groupWeeks.map((weekStartDate) => {
-        const point = rowsByWeek.get(weekStartDate)?.[group.id] ?? {
-          actual: null,
-          forecast: null,
-          value2024: null,
-        }
+    return groupWeeks.map((weekStartDate) => {
+      const aggregatedPoint = sumAggregatedValuePoints(
+        groupIds.map(
+          (groupId) =>
+            rowsByWeek.get(weekStartDate)?.[groupId] ?? createEmptyAggregatedValuePoint(),
+        ),
+      )
 
-        return {
-          fecha: weekStartDate,
-          label: formatWeekLabel(weekStartDate),
-          actual: point.actual,
-          forecast: point.forecast,
-          value2024: point.value2024,
-        }
-      }),
-    }
-  })
+      return {
+        fecha: weekStartDate,
+        label: formatWeekLabel(weekStartDate),
+        actual: aggregatedPoint.actual,
+        forecast: aggregatedPoint.forecast,
+        value2024: aggregatedPoint.value2024,
+      }
+    })
+  }
+
+  const buildChartViews = <TViewId extends ForecastChartViewId>(
+    definitions: ChartViewDefinition<TViewId>[],
+  ): ForecastChartViewModel[] =>
+    definitions.map((definition) => {
+      const points = buildPointsForGroups(definition.groupIds)
+
+      return {
+        id: definition.id,
+        label: definition.label,
+        points,
+        hasData: points.length > 0,
+      }
+    })
+
+  return [
+    {
+      id: 'servicios',
+      title: 'Servicios',
+      defaultViewId: 'entregas',
+      views: buildChartViews(SERVICES_CHART_VIEWS),
+    },
+    {
+      id: 'picking',
+      title: 'Picking',
+      defaultViewId: 'lineas',
+      views: buildChartViews(PICKING_CHART_VIEWS),
+    },
+  ]
 }

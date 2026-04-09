@@ -16,6 +16,8 @@ const KpiTrendChart = lazy(
   () => import('@/features/forecast/components/KpiTrendChart'),
 )
 
+const CHART_PANEL_HEIGHT_CLASS = 'h-[clamp(15.5rem,27vh,19rem)]'
+
 const toggleQuarterSelection = (
   selectedQuarters: number[],
   quarter: number,
@@ -74,10 +76,12 @@ export const ForecastModule = () => {
     data.consumoVs2024Semanal,
     effectiveSelectedQuarters,
   )
-  const hasAnyPoint = chartModels.some((model) => model.points.length > 0)
+  const hasAnyPoint = chartModels.some((model) =>
+    model.views.some((view) => view.hasData),
+  )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Panel className="animate-rise bg-gradient-to-r from-white via-white to-slate-50">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
           Filtro por trimestre
@@ -106,11 +110,11 @@ export const ForecastModule = () => {
       </div>
 
       {hasAnyPoint ? (
-        <div className="grid gap-5 xl:grid-cols-3">
+        <div className="grid gap-4">
           {chartModels.map((chart) => (
             <Suspense
               key={chart.id}
-              fallback={<Panel className="h-[340px] animate-rise" />}
+              fallback={<Panel className={`${CHART_PANEL_HEIGHT_CLASS} animate-rise`} />}
             >
               <KpiTrendChart chart={chart} />
             </Suspense>

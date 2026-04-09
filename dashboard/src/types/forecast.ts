@@ -11,6 +11,17 @@ export type KpiGroupId =
   | 'lineas_preparadas'
   | 'unidades_preparadas'
 
+export type ForecastChartId = 'servicios' | 'picking'
+
+export type ServicesChartViewId =
+  | 'entregas'
+  | 'recogidas'
+  | 'entregas_recogidas'
+
+export type PickingChartViewId = 'lineas' | 'unidades'
+
+export type ForecastChartViewId = ServicesChartViewId | PickingChartViewId
+
 export interface ConsumoForecastDiarioRow {
   fecha: string
   kpi: KpiCode
@@ -103,8 +114,16 @@ export interface ForecastChartPoint {
   value2024: number | null
 }
 
-export interface ForecastChartModel {
-  id: KpiGroupId
-  title: string
+export interface ForecastChartViewModel {
+  id: ForecastChartViewId
+  label: string
   points: ForecastChartPoint[]
+  hasData: boolean
+}
+
+export interface ForecastChartModel {
+  id: ForecastChartId
+  title: string
+  defaultViewId: ForecastChartViewId
+  views: ForecastChartViewModel[]
 }
