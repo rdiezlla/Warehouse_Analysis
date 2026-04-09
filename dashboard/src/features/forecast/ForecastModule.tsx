@@ -16,7 +16,7 @@ const KpiTrendChart = lazy(
   () => import('@/features/forecast/components/KpiTrendChart'),
 )
 
-const CHART_PANEL_HEIGHT_CLASS = 'h-[clamp(15.5rem,27vh,19rem)]'
+const CHART_PANEL_HEIGHT_CLASS = 'h-[clamp(16.75rem,30vh,20.25rem)]'
 
 const toggleQuarterSelection = (
   selectedQuarters: number[],

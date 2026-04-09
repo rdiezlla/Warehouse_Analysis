@@ -19,7 +19,7 @@ interface KpiTrendChartProps {
   chart: ForecastChartModel
 }
 
-const CHART_PANEL_HEIGHT_CLASS = 'h-[clamp(15.5rem,27vh,19rem)]'
+const CHART_PANEL_HEIGHT_CLASS = 'h-[clamp(16.75rem,30vh,20.25rem)]'
 
 const formatAxisTick = (value: number | null): string => formatCompactNumber(value)
 

@@ -1,12 +1,12 @@
 {
   "sourceMode": "consumption_outputs",
   "sourcePath": "/workspace/outputs/consumption",
-  "syncedAt": "2026-04-09T13:29:18.624Z",
+  "syncedAt": "2026-04-09T14:02:05.207Z",
   "tables": {
     "consumo_forecast_diario": 140,
     "consumo_forecast_semanal": 25,
-    "consumo_vs_2024_diario": 1251,
-    "consumo_vs_2024_semanal": 181,
+    "consumo_vs_2024_diario": 1825,
+    "consumo_vs_2024_semanal": 260,
     "consumo_progreso_actual": 15,
     "dim_kpi": 5
   }
