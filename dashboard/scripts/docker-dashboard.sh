@@ -17,6 +17,10 @@ if [ ! -d node_modules ] || [ ! -f "$LOCK_MARKER" ] || [ "$(cat "$LOCK_MARKER" 2
 fi
 
 case "$MODE" in
+  npm)
+    shift
+    exec npm "$@"
+    ;;
   dev)
     npm run sync:data
     exec npm run dev -- --host 0.0.0.0 --port "${PORT:-5173}"

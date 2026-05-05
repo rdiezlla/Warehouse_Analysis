@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+MOVIMIENTOS_COLUMNS = [
+    "movement_type",
+    "started_at",
+    "completed_at",
+    "operational_date",
+    "sku",
+    "sku_description",
+    "quantity",
+    "owner",
+    "operator",
+    "location",
+    "order_id",
+    "external_order_id",
+    "client",
+    "external_client",
+    "generic_code",
+    "service_code",
+    "service_type",
+    "request_id",
+    "basket_date",
+    "transaction_id",
+]
+
+LINEAS_COLUMNS = [
+    "request_id",
+    "request_code",
+    "service_date",
+    "created_at",
+    "order_id",
+    "sku",
+    "owner",
+    "department",
+    "line_status",
+    "requested_quantity",
+    "confirmed_quantity",
+    "stored_quantity",
+    "modified_at",
+    "event_end_at",
+    "deleted_at",
+    "line_type",
+    "action",
+    "service_flow",
+    "request_status",
+    "order_created_at",
+    "last_modified_at",
+    "province",
+    "generic_code",
+]
+
+ARTICULOS_COLUMNS = [
+    "sku",
+    "sku_name",
+    "category",
+    "created_at",
+    "weight_kg",
+    "m2",
+    "m3",
+    "length",
+    "width",
+    "height",
+]
+
+ALBARANES_COLUMNS = [
+    "item",
+    "service_date",
+    "event_concept",
+    "description",
+    "service_code",
+    "requester",
+    "department",
+    "pallets_in",
+    "boxes_in",
+    "m3_in",
+    "pallets_out",
+    "boxes_out",
+    "m3_out",
+    "urgency",
+    "holiday",
+    "destination_province",
+    "weight_kg",
+    "volume_m3",
+]
+
+STOCK_COLUMNS = [
+    "snapshot_date",
+    "owner",
+    "owner_code",
+    "sku",
+    "sku_description",
+    "stock_quantity",
+    "location",
+    "occupancy_status",
+]
+
+NORMALIZED_FILES = {
+    "movimientos": "movimientos_normalizados.parquet",
+    "lineas": "lineas_normalizadas.parquet",
+    "articulos": "articulos_normalizados.parquet",
+    "albaranes": "albaranes_normalizados.parquet",
+    "stock_snapshot": "stock_snapshot_normalizado.parquet",
+}

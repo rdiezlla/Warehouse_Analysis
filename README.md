@@ -1,146 +1,149 @@
-# Warehouse_Analysis
+# Warehouse Analysis
 
-Pipeline de forecasting operativo + dashboard web.
+Aplicacion local modular para analisis operativo de almacen con tres modulos:
 
-## Política oficial del repo
+- Forecast
+- ABC
+- Market Basket
 
-- Pipeline forecast: se mantiene en Python host.
-- Web/dashboard: la única vía oficial de desarrollo y build es Docker.
-- `weekly_direct` sigue siendo solo diagnóstico y no entra en la capa operativa.
+El flujo principal es Docker. No hace falta ejecutar `npm install`, `npm run dev` ni instalar dependencias Python en el host para el uso normal.
 
-## Instalación una sola vez
+## Comandos Principales
 
-Necesitas:
-- Docker Desktop o equivalente con `docker compose`
-- Python 3.11+ para el pipeline
-
-Preparación del pipeline:
-
-```bash
-python -m venv .venv
-./.venv/Scripts/python.exe -m pip install -r requirements.txt
-```
-
-En Windows PowerShell:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-
-## Flujo 1: pipeline + Docker
-
-Caso de uso:
-- has actualizado forecast o datos
-- quieres regenerar todo y verlo en la web
-
-1. Ejecutar pipeline:
-
-```bash
-python -m src.main --stage all
-python -m src.main --stage consumption
-```
-
-En Windows:
-
-```powershell
-.\run-pipeline.cmd all
-.\run-pipeline.cmd consumption
-```
-
-2. Levantar dashboard con Docker:
+Levantar dashboard:
 
 ```bash
 docker compose up --build dashboard-dev
 ```
 
-Wrappers útiles:
-- Windows PowerShell: [dashboard/docker-dev.ps1](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-dev.ps1)
-- Windows CMD: [dashboard/docker-dev.cmd](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-dev.cmd)
-- macOS/Linux: [dashboard/docker-dev.sh](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-dev.sh)
-
-Abrir:
-- [http://localhost:5173](http://localhost:5173)
-
-3. Parar la web:
+Ejecutar todos los pipelines:
 
 ```bash
-docker compose down
+docker compose run --rm pipeline python -m src.pipelines.run_all
 ```
 
-## Flujo 2: solo Docker para la web
-
-Caso de uso:
-- no has tocado forecast
-- ya tienes `outputs/consumption` actualizado
-- solo quieres trabajar en frontend
-
-Arrancar:
+Ejecutar Forecast:
 
 ```bash
-docker compose up --build dashboard-dev
+docker compose run --rm pipeline python -m src.pipelines.forecast.run_forecast_pipeline
 ```
 
-Parar:
+Ejecutar ABC:
 
 ```bash
-docker compose down
+docker compose run --rm pipeline python -m src.pipelines.abc.run_abc_pipeline
 ```
 
-## Build oficial de la web
-
-Comando oficial:
+Ejecutar Market Basket:
 
 ```bash
-docker compose run --rm dashboard-build
+docker compose run --rm pipeline python -m src.pipelines.market_basket.run_market_basket_pipeline
 ```
 
-Wrappers útiles:
-- Windows PowerShell: [dashboard/docker-build.ps1](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-build.ps1)
-- Windows CMD: [dashboard/docker-build.cmd](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-build.cmd)
-- macOS/Linux: [dashboard/docker-build.sh](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-build.sh)
+Validar Python:
 
-La build queda en:
-- [dashboard/dist](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\dist)
-
-No hace falta Node instalado en el host.
-
-## Despliegue de la build
-
-Puedes copiar:
-- [dashboard/dist](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\dist)
-- [dashboard/deploy/serve-dist.ps1](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\deploy\serve-dist.ps1)
-
-En Windows:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\dashboard\deploy\serve-dist.ps1 -Port 8080 -Root .\dashboard\dist
+```bash
+docker compose run --rm pipeline python -m compileall src
 ```
 
-Abrir:
-- [http://localhost:8080](http://localhost:8080)
+Build del dashboard:
 
-## Datos que consume la web
+```bash
+docker compose run --rm dashboard-build npm run build
+```
 
-La web sincroniza desde:
-- `outputs/consumption`
+## Datos Locales
 
-Tablas principales:
-- `consumo_forecast_diario`
-- `consumo_forecast_semanal`
-- `consumo_vs_2024_diario`
-- `consumo_vs_2024_semanal`
-- `consumo_progreso_actual`
-- `dim_kpi`
+La carpeta unica de ingesta del proyecto debe ser:
 
-## Docker del dashboard
+```text
+data/input/
+```
 
-Archivos relevantes:
-- [docker-compose.yml](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\docker-compose.yml)
-- [dashboard/Dockerfile](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\Dockerfile)
-- [dashboard/scripts/docker-dashboard.sh](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\scripts\docker-dashboard.sh)
+Contenido esperado:
 
-Notas:
-- el contenedor monta el repo y lee `outputs/consumption`
-- `node_modules` vive en volumen Docker para evitar problemas en Windows/macOS
-- los scripts `npm` quedan como mecanismo interno del contenedor, no como flujo oficial del host
+```text
+data/input/
+  movimientos.xlsx
+  lineas_solicitudes_con_pedidos.xlsx
+  maestro_dimensiones_limpio.xlsx
+  Informacion_albaranaes.xlsx
+  29-04-2026.xlsx
+```
+
+La foto de stock puede tener cualquier fecha con formato `dd-mm-yyyy.xlsx`; si hay varias fotos en `data/input/`, el pipeline usa la mas reciente. En tu caso actual, la foto correcta es `29-04-2026.xlsx`.
+
+Por compatibilidad local, la capa comun todavia puede leer desde ubicaciones antiguas si falta algo en `data/input/`:
+
+- `data/raw/`
+- la raiz del repositorio
+- `_legacy_imports/abc/`
+- `_legacy_imports/market_basket/`
+
+Cuando esto ocurre, el pipeline emite un warning. La idea final es que `_legacy_imports/` quede solo como historico y que ningun pipeline dependa de esa carpeta. No se borran ni sustituyen las carpetas antiguas `data/raw`, `data/interim`, `data/processed` ni `outputs`.
+
+## Capa Normalizada
+
+Los pipelines comunes generan:
+
+```text
+data/normalized/
+  movimientos_normalizados.parquet
+  lineas_normalizadas.parquet
+  articulos_normalizados.parquet
+  albaranes_normalizados.parquet
+  stock_snapshot_normalizado.parquet
+```
+
+Si un input no existe o una foto de stock no es valida, se registra un warning y se continua con el resto.
+
+## Outputs
+
+Los outputs modulares se escriben en:
+
+```text
+data/output/forecast/
+data/output/abc/
+data/output/market_basket/
+```
+
+El dashboard consume solo JSON estaticos desde:
+
+```text
+dashboard/public/data/forecast/
+dashboard/public/data/abc/
+dashboard/public/data/market_basket/
+```
+
+Forecast mantiene compatibilidad con los JSON existentes:
+
+- `dashboard/public/data/consumo_forecast_diario.json`
+- `dashboard/public/data/consumo_forecast_semanal.json`
+
+## Dashboard
+
+El dashboard se levanta con Docker y muestra:
+
+- Forecast
+- ABC
+- Market Basket
+
+Forecast sigue usando el modulo existente. ABC y Market Basket usan los JSON generados por sus pipelines.
+
+## GitHub
+
+La subida remota y la limpieza de historial quedan para mas adelante. En esta fase se trabaja en local y no se borran datos ni outputs locales.
+
+Carpetas y artefactos que no deberian subirse:
+
+- `.venv/`, `venv/`
+- `node_modules/`
+- `dist/`, `build/`
+- `_legacy_imports/`
+- `data/input/`
+- `data/normalized/`
+- `data/output/`
+- `outputs/`, `output/`
+- Excels, Parquet, PKL, logs y datos reales
+
+Mas detalle en `docs/data_pipeline.md`.

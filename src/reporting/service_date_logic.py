@@ -25,8 +25,8 @@ ALBARAN_PICKUP_FIELDS = [
     "fecha_recogida",
     "reservation_finish_date",
 ]
-SOLICITUD_DELIVERY_FIELDS = ["fecha_inicio_evento", "reservation_start_date"]
-SOLICITUD_PICKUP_FIELDS = ["fecha_fin_evento", "reservation_finish_date"]
+SOLICITUD_DELIVERY_FIELDS = ["fecha_servicio", "fecha_inicio_evento", "reservation_start_date"]
+SOLICITUD_PICKUP_FIELDS = ["fecha_servicio", "fecha_fin_evento", "reservation_finish_date"]
 
 
 def _format_date(value: object) -> str:
@@ -137,8 +137,8 @@ def write_service_date_logic_reports(albaranes: pd.DataFrame, solicitudes: pd.Da
         "- Usar inicio del evento adelantaba la carga de `EGE` en actuals, cartera, capa hibrida y consumo.",
         "",
         "## 3. Logica nueva",
-        "- `SGE` y `SGP`: prioridad a fecha de inicio / entrega; fallback documentado a fecha generica.",
-        "- `EGE`: prioridad a fecha de fin / recogida; fallback documentado a fecha generica o inicio si el dataset no trae fin.",
+        "- `SGE` y `SGP`: prioridad a `fecha_servicio` cuando existe; si no, fecha de inicio / entrega.",
+        "- `EGE`: prioridad a `fecha_servicio` cuando existe; si no, fecha de fin / recogida.",
         "- La columna operativa comun ahora es `fecha_servicio_objetiva`.",
         "",
         "## 4. Campos usados en albaranes",
@@ -153,8 +153,8 @@ def write_service_date_logic_reports(albaranes: pd.DataFrame, solicitudes: pd.Da
         "## 6. Fallbacks aplicados",
         "- Albaranes entrega: inicio/entrega preferente, fallback a `fecha_servicio`.",
         "- Albaranes recogida: fin/recogida preferente, fallback a `fecha_servicio`.",
-        "- Solicitudes entrega: `fecha_inicio_evento` o `reservation_start_date`; fallback a fin si no existe inicio.",
-        "- Solicitudes recogida: `fecha_fin_evento` o `reservation_finish_date`; fallback a inicio si no existe fin.",
+        "- Solicitudes entrega: `fecha_servicio`; fallback a `fecha_inicio_evento` o `reservation_start_date` y despues a fin si no existe inicio.",
+        "- Solicitudes recogida: `fecha_servicio`; fallback a `fecha_fin_evento` o `reservation_finish_date` y despues a inicio si no existe fin.",
         "",
         "## 7. Registros sin fecha correcta",
     ]

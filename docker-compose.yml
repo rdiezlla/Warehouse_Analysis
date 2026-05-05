@@ -1,4 +1,19 @@
 services:
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: warehouse-analysis-pipeline
+    working_dir: /workspace
+    environment:
+      PYTHONPATH: /workspace
+    volumes:
+      - ./:/workspace
+      - ./data:/workspace/data
+      - ./outputs:/workspace/outputs
+      - ./dashboard/public/data:/workspace/dashboard/public/data
+    init: true
+
   dashboard-dev:
     build:
       context: ./dashboard

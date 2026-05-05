@@ -10,6 +10,16 @@ export const formatCompactNumber = (value: number | null): string => {
   }).format(value)
 }
 
+export const formatNumber = (value: number | null): string => {
+  if (value === null || Number.isNaN(value)) {
+    return '--'
+  }
+
+  return new Intl.NumberFormat('es-ES', {
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
 export const formatPercent = (value: number | null): string => {
   if (value === null || Number.isNaN(value)) {
     return '--'

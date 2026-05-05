@@ -15,6 +15,7 @@ from src.utils.validation_utils import require_columns
 LOGGER = logging.getLogger(__name__)
 
 DATE_COLUMNS = [
+    "fecha_servicio",
     "inicio_evento",
     "creacion_solicitud",
     "borrado_solicitud",
@@ -28,8 +29,8 @@ DATE_COLUMNS = [
 ]
 
 SOLICITUD_PREFERRED_DATE_FIELDS = {
-    "delivery": ["fecha_inicio_evento", "reservation_start_date"],
-    "pickup": ["fecha_fin_evento", "reservation_finish_date"],
+    "delivery": ["fecha_servicio", "fecha_inicio_evento", "reservation_start_date"],
+    "pickup": ["fecha_servicio", "fecha_fin_evento", "reservation_finish_date"],
 }
 
 SOLICITUD_FALLBACK_DATE_FIELDS = {
@@ -63,7 +64,9 @@ def clean_solicitudes(raw_df: pd.DataFrame, alias_map: dict[str, Any], regex_rul
     df = classify_dataframe(df, regex_rules)
     df["linea_solicitada"] = 1
     df["fecha_creacion"] = df["creacion_solicitud"].dt.normalize()
+    df["fecha_servicio"] = df["fecha_servicio"].dt.normalize()
     df["fecha_inicio_evento"] = df["inicio_evento"].dt.normalize()
+    df["fecha_inicio_evento"] = df["fecha_inicio_evento"].fillna(df["fecha_servicio"])
     df["fecha_fin_evento"] = df["fin_evento"].dt.normalize()
     df = pd.concat(
         [
