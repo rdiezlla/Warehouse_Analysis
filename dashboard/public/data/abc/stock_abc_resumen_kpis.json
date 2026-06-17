@@ -1,0 +1,13 @@
+{
+  "snapshot_date": "2026-06-10",
+  "fecha_referencia": "2026-06-10",
+  "articulos_actuales": 1270,
+  "owner_articulos_actuales": 1532,
+  "stock_total": 529596.0,
+  "lineas_pi_ytd": 6950,
+  "conteo_abc_actual": {
+    "B": 665,
+    "C": 347,
+    "A": 258
+  }
+}

@@ -1,26 +1,22 @@
 # Dashboard Forecast
 
-La única vía oficial para desarrollar y compilar esta web es Docker.
+La unica via oficial para desarrollar y compilar esta web es Docker. Dentro de Docker se usa `pnpm`, no `npm`.
 
 ## Requisitos
 
 - Docker Desktop o equivalente con `docker compose`
 - `outputs/consumption` generado si quieres trabajar con datos reales
 
-## Desarrollo oficial
+## Desarrollo Oficial
 
-Desde la raíz del repo:
+Desde la raiz del repo:
 
 ```bash
 docker compose up --build dashboard-dev
 ```
 
-Wrappers:
-- Windows PowerShell: [docker-dev.ps1](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-dev.ps1)
-- Windows CMD: [docker-dev.cmd](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-dev.cmd)
-- macOS/Linux: [docker-dev.sh](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-dev.sh)
-
 Abrir:
+
 - [http://localhost:5173](http://localhost:5173)
 
 Parar:
@@ -29,36 +25,38 @@ Parar:
 docker compose down
 ```
 
-## Build oficial
+## Build Oficial
 
-Desde la raíz del repo:
+Desde la raiz del repo:
 
 ```bash
 docker compose run --rm dashboard-build
 ```
 
-Wrappers:
-- Windows PowerShell: [docker-build.ps1](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-build.ps1)
-- Windows CMD: [docker-build.cmd](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-build.cmd)
-- macOS/Linux: [docker-build.sh](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\docker-build.sh)
+Tambien puedes ejecutar el script de build directamente:
 
-Salida:
-- [dist](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\dist)
+```bash
+docker compose run --rm dashboard-build pnpm run build
+```
+
+Este comando solo genera `dist`; no levanta servidor ni muestra localhost. Para abrir la web usa `dashboard-dev`.
 
 ## Datos
 
 El contenedor ejecuta internamente:
-- `npm run sync:data`
-- `npm run dev`
-- `npm run build:release`
+
+- `pnpm run sync:data`
+- `pnpm exec vite --host 0.0.0.0 --port 5173`
+- `pnpm run build:release`
 
 La fuente de datos esperada es:
+
 - `../outputs/consumption`
 
-Si la capa de consumo no existe o está incompleta, `sync:data` cae al modo demo del proyecto.
+Si la capa de consumo no existe o esta incompleta, `sync:data` cae al modo demo del proyecto.
 
-## Scripts internos
+## Scripts Internos
 
-Los scripts `npm` de [package.json](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\package.json) se mantienen porque Docker los usa dentro del contenedor.
+Los scripts de [package.json](C:\Users\rdiezl\Desktop\proyecto\Warehouse_Analysis\dashboard\package.json) se ejecutan con `pnpm` dentro del contenedor. El lockfile operativo es `pnpm-lock.yaml`.
 
 No se consideran flujo oficial para ejecutar la web directamente en el host.

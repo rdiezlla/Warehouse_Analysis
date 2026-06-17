@@ -32,6 +32,7 @@ movimientos:
   operario: [operario]
   denominacion_operario: [denominacion_operario]
   ubicacion: [ubicacion]
+  paleta: [paleta]
   pedido: [pedido]
   pedido_externo: [pedido_externo]
   cliente: [cliente]

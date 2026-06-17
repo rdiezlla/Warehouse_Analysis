@@ -6,6 +6,7 @@ import logging
 import pandas as pd
 
 from src.modeling.abc.analysis import classify_abc
+from src.modeling.abc.legacy_outputs import build_legacy_abc_outputs
 from src.pipelines.common.config import get_paths
 from src.pipelines.common.normalize import run_common_pipeline
 from src.pipelines.common.schemas import NORMALIZED_FILES
@@ -32,12 +33,14 @@ def run(normalize_first: bool = True) -> dict[str, str]:
         LOGGER.warning("ABC se ejecuta sin stock_snapshot_normalizado; se calculara ranking solo por movimientos.")
 
     abc_sku = classify_abc(movimientos, stock if not stock.empty else None)
+    legacy_outputs = build_legacy_abc_outputs(movimientos, stock if not stock.empty else None)
     outputs = write_abc_outputs(
         abc_sku,
         paths.output_dir / "abc",
         paths.dashboard_data_dir / "abc",
+        legacy_outputs,
     )
-    LOGGER.info("ABC generado con %s SKUs", len(abc_sku))
+    LOGGER.info("ABC generado con %s SKUs y %s datasets legacy-style", len(abc_sku), len(legacy_outputs.datasets))
     return {key: str(value) for key, value in outputs.items()}
 
 

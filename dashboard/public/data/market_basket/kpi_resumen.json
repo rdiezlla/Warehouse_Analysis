@@ -1,0 +1,15 @@
+[
+  {
+    "movimientos_pi":67609,
+    "transacciones_validas":22323,
+    "articulos_unicos":8055,
+    "propietarios_unicos":74,
+    "tamano_cesta_media":2.4369,
+    "tamano_cesta_mediana":1.0,
+    "pct_transacciones_1_articulo":0.6004,
+    "pct_transacciones_2_articulos":0.1698,
+    "pct_transacciones_3_o_mas":0.2298,
+    "fecha_min":"2022-01-03T00:00:00.000",
+    "fecha_max":"2026-06-09T00:00:00.000"
+  }
+]

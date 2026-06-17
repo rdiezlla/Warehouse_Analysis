@@ -44,6 +44,15 @@ def _find_named_source(filename: str, paths: PipelinePaths) -> Path | None:
     return None
 
 
+def _find_named_sources(filename: str, paths: PipelinePaths) -> list[Path]:
+    sources: list[Path] = []
+    for directory in _candidate_dirs(paths):
+        candidate = directory / filename
+        if candidate.exists():
+            sources.append(candidate)
+    return sources
+
+
 def _display_path(path: Path, paths: PipelinePaths) -> str:
     try:
         return str(path.relative_to(paths.root))
@@ -124,22 +133,28 @@ def load_inputs(paths: PipelinePaths | None = None) -> LoadedInputs:
     warnings: list[str] = []
 
     for dataset_name, filename in DEFAULT_SOURCE_FILENAMES.items():
-        source = _find_named_source(filename, paths)
-        if source is None:
+        sources_candidates = _find_named_sources(filename, paths)
+        if not sources_candidates:
             warning = f"No se encontro input para {dataset_name}: {filename}"
             LOGGER.warning(warning)
             warnings.append(warning)
             continue
-        try:
-            frames[dataset_name] = _read_tabular(source)
-            sources[dataset_name] = source
-            LOGGER.info("Input %s cargado desde %s", dataset_name, source)
-            compatibility_warning = _compatibility_warning(dataset_name, source, paths)
-            if compatibility_warning:
-                LOGGER.warning(compatibility_warning)
-                warnings.append(compatibility_warning)
-        except Exception as exc:
-            warning = f"No se pudo leer {dataset_name} desde {_display_path(source, paths)}: {exc}"
+        for source in sources_candidates:
+            try:
+                frames[dataset_name] = _read_tabular(source)
+                sources[dataset_name] = source
+                LOGGER.info("Input %s cargado desde %s", dataset_name, source)
+                compatibility_warning = _compatibility_warning(dataset_name, source, paths)
+                if compatibility_warning:
+                    LOGGER.warning(compatibility_warning)
+                    warnings.append(compatibility_warning)
+                break
+            except Exception as exc:
+                warning = f"No se pudo leer {dataset_name} desde {_display_path(source, paths)}: {exc}"
+                LOGGER.warning(warning)
+                warnings.append(warning)
+        if dataset_name not in frames:
+            warning = f"No se pudo leer ningun input candidato para {dataset_name}: {filename}"
             LOGGER.warning(warning)
             warnings.append(warning)
 

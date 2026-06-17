@@ -53,6 +53,48 @@ class CleanSolicitudesSchemaTests(unittest.TestCase):
         self.assertEqual(cleaned.loc[0, "fecha_servicio_objetiva"], pd.Timestamp("2026-04-01"))
         self.assertEqual(qa["service_date_logic"]["pct_missing"], 0.0)
 
+    def test_new_schema_parses_service_date_as_dayfirst(self) -> None:
+        aliases, regex_rules = _load_rules()
+        raw = pd.DataFrame(
+            {
+                "Solicitud": ["PORTE ENTREGA PRODUCTO"],
+                "Fecha de servicio": ["06/11/2025 10:00:00"],
+                "Creacion solicitud": ["30/10/2025 10:00:00"],
+                "Pedido": ["SGP202523984-01"],
+                "Articulo": ["100"],
+                "Cant. solicitada": [1],
+                "Codigo Generico": ["SGP202523984"],
+                "Accion": ["ENVIO"],
+            }
+        )
+
+        cleaned, _ = clean_solicitudes(raw, aliases, regex_rules)
+
+        self.assertEqual(cleaned.loc[0, "clase_servicio"], "entrega")
+        self.assertEqual(cleaned.loc[0, "fecha_servicio_objetiva"], pd.Timestamp("2025-11-06"))
+
+    def test_new_schema_imputes_missing_service_date_within_same_request(self) -> None:
+        aliases, regex_rules = _load_rules()
+        raw = pd.DataFrame(
+            {
+                "Solicitud": ["PORTE ENVIO PRODUCTO", None],
+                "Fecha de servicio": ["13/05/2026 09:00:00", None],
+                "Creacion solicitud": ["10/05/2026 10:00:00", None],
+                "Pedido": ["SG22202625915-01", "SG22202625915-02"],
+                "Articulo": ["100", "101"],
+                "Cant. solicitada": [1, 2],
+                "Codigo Generico": ["SG22202625915", "SG22202625915"],
+                "Accion": ["ENVIO", "ENVIO"],
+            }
+        )
+
+        cleaned, qa = clean_solicitudes(raw, aliases, regex_rules)
+
+        self.assertEqual(cleaned["fecha_servicio_objetiva"].tolist(), [pd.Timestamp("2026-05-13"), pd.Timestamp("2026-05-13")])
+        self.assertEqual(cleaned["flag_fecha_objetiva_missing"].sum(), 0)
+        self.assertEqual(cleaned["flag_fecha_servicio_imputada_codigo_generico"].sum(), 1)
+        self.assertEqual(qa["fecha_servicio_imputada_codigo_generico"], 1)
+
     def test_old_schema_keeps_pickup_fallback_to_fin_evento(self) -> None:
         aliases, regex_rules = _load_rules()
         raw = pd.DataFrame(

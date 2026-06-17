@@ -1,0 +1,101 @@
+[
+  {
+    "issue":"rows_excluded_missing_external_order_in_pi",
+    "count":2635,
+    "pct_total_rows":1.4309,
+    "severity":"high",
+    "stage":"filtered",
+    "rule":null,
+    "description":"PI rows excluded from the main model due to missing external order."
+  },
+  {
+    "issue":"rows_excluded_non_positive_quantity_in_pi",
+    "count":0,
+    "pct_total_rows":0.0,
+    "severity":"high",
+    "stage":"filtered",
+    "rule":"data_quality.exclude_non_positive_quantity=true",
+    "description":"PI rows excluded from the main model due to quantity <= 0."
+  },
+  {
+    "issue":"rows_after_movement_filter",
+    "count":70244,
+    "pct_total_rows":38.1458,
+    "severity":"info",
+    "stage":"filtered",
+    "rule":"PI",
+    "description":"Rows kept after filtering movement_type = PI."
+  },
+  {
+    "issue":"rows_after_model_filters",
+    "count":67609,
+    "pct_total_rows":36.7149,
+    "severity":"info",
+    "stage":"model",
+    "rule":null,
+    "description":"Rows available for the main basket model after cleaning and business filters."
+  },
+  {
+    "issue":"missing_article",
+    "count":0,
+    "pct_total_rows":0.0,
+    "severity":"high",
+    "stage":"raw",
+    "rule":null,
+    "description":"Rows without article."
+  },
+  {
+    "issue":"missing_completion_date",
+    "count":0,
+    "pct_total_rows":0.0,
+    "severity":"high",
+    "stage":"raw",
+    "rule":null,
+    "description":"Rows without a parseable completion date."
+  },
+  {
+    "issue":"missing_external_order",
+    "count":61285,
+    "pct_total_rows":33.2807,
+    "severity":"high",
+    "stage":"raw",
+    "rule":null,
+    "description":"Rows without external order."
+  },
+  {
+    "issue":"missing_owner",
+    "count":0,
+    "pct_total_rows":0.0,
+    "severity":"high",
+    "stage":"raw",
+    "rule":null,
+    "description":"Rows without owner."
+  },
+  {
+    "issue":"missing_location",
+    "count":45845,
+    "pct_total_rows":24.896,
+    "severity":"medium",
+    "stage":"raw",
+    "rule":null,
+    "description":"Rows without location."
+  },
+  {
+    "issue":"non_positive_quantity_raw",
+    "count":6184,
+    "pct_total_rows":3.3582,
+    "severity":"medium",
+    "stage":"raw",
+    "rule":null,
+    "description":"Rows with null, zero or negative quantity."
+  },
+  {
+    "issue":"potential_duplicate_rows",
+    "count":22224,
+    "pct_total_rows":12.0687,
+    "severity":"medium",
+    "stage":"raw",
+    "rule":"movement_type,completion_date,article,quantity,owner,location,external_order",
+    "description":"Potential duplicates detected over the configured subset."
+  }
+]

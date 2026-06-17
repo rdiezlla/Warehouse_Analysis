@@ -39,6 +39,30 @@ SOLICITUD_FALLBACK_DATE_FIELDS = {
 }
 
 
+def _fill_fecha_servicio_from_request(df: pd.DataFrame) -> pd.DataFrame:
+    if "fecha_servicio" not in df.columns or "codigo_generico" not in df.columns:
+        return df
+
+    df = df.copy()
+    df["flag_fecha_servicio_imputada_codigo_generico"] = 0
+    valid = df["codigo_generico"].notna() & df["fecha_servicio"].notna()
+    if not valid.any():
+        return df
+
+    unique_dates = (
+        df.loc[valid, ["codigo_generico", "fecha_servicio"]]
+        .drop_duplicates()
+        .groupby("codigo_generico")["fecha_servicio"]
+        .agg(list)
+    )
+    single_date_by_code = unique_dates[unique_dates.map(len).eq(1)].map(lambda values: values[0])
+    fill_values = df["codigo_generico"].map(single_date_by_code)
+    fill_mask = df["fecha_servicio"].isna() & fill_values.notna()
+    df.loc[fill_mask, "fecha_servicio"] = fill_values.loc[fill_mask]
+    df.loc[fill_mask, "flag_fecha_servicio_imputada_codigo_generico"] = 1
+    return df
+
+
 def clean_solicitudes(raw_df: pd.DataFrame, alias_map: dict[str, Any], regex_rules: dict[str, Any]) -> tuple[pd.DataFrame, dict[str, Any]]:
     df, _, missing = canonicalize_columns(raw_df, alias_map["solicitudes"])
     require_columns("solicitudes", missing)
@@ -61,6 +85,7 @@ def clean_solicitudes(raw_df: pd.DataFrame, alias_map: dict[str, Any], regex_rul
     df["codigo_generico"] = df.get("codigo_generico", pd.Series(dtype=object)).map(normalize_code)
     df["codigo_articulo"] = df.get("articulo", pd.Series(dtype=object)).map(normalize_code)
     df["codigo_servicio"] = df["codigo_generico"]
+    df = _fill_fecha_servicio_from_request(df)
     df = classify_dataframe(df, regex_rules)
     df["linea_solicitada"] = 1
     df["fecha_creacion"] = df["creacion_solicitud"].dt.normalize()
@@ -87,6 +112,7 @@ def clean_solicitudes(raw_df: pd.DataFrame, alias_map: dict[str, Any], regex_rul
         "null_codigo_generico_pct": float(df["codigo_generico"].isna().mean()),
         "service_distribution": df["tipo_servicio"].value_counts(dropna=False).to_dict(),
         "service_date_logic": build_service_date_quality_qa(df),
+        "fecha_servicio_imputada_codigo_generico": int(df["flag_fecha_servicio_imputada_codigo_generico"].sum()),
     }
     LOGGER.info("Clean solicitudes complete with %s rows", len(df))
     return df, qa

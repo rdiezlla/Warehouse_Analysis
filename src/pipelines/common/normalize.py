@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,13 @@ from src.utils.io_utils import ensure_dirs, save_parquet_safe, write_json
 from src.utils.text_utils import canonicalize_columns, normalize_code, normalize_column_name, normalize_text
 
 LOGGER = logging.getLogger(__name__)
+
+EXTERNAL_ORDER_LOOKUP_FILENAMES = (
+    "movimientos_pedido_externo_lookup.parquet",
+    "movimientos_pedido_externo_lookup.csv",
+)
+MOVIMIENTOS_LOOKUP_KEY_COLUMNS = ["pallet", "sku", "completed_at", "quantity", "owner"]
+MOVIMIENTOS_LOOKUP_FILL_COLUMNS = ["order_id", "external_order_id", "client", "external_client"]
 
 
 def _coerce_datetime(series: pd.Series | None) -> pd.Series:
@@ -62,6 +70,28 @@ def _service_flow_from_action(series: pd.Series | None) -> pd.Series:
     ).astype("string")
 
 
+def _fill_service_date_from_request(df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    service_date = _coerce_datetime(df.get("fecha_servicio")).dt.normalize()
+    if "codigo_generico" not in df.columns:
+        return service_date, pd.Series(0, index=df.index, dtype="int64")
+
+    request_code = _string_code(df.get("codigo_generico"))
+    valid = request_code.notna() & service_date.notna()
+    imputed_flag = pd.Series(0, index=df.index, dtype="int64")
+    if not valid.any():
+        return service_date, imputed_flag
+
+    source = pd.DataFrame({"request_code": request_code.loc[valid], "service_date": service_date.loc[valid]})
+    unique_dates = source.drop_duplicates().groupby("request_code")["service_date"].agg(list)
+    single_date_by_code = unique_dates[unique_dates.map(len).eq(1)].map(lambda values: values[0])
+    fill_values = request_code.map(single_date_by_code)
+    fill_mask = service_date.isna() & fill_values.notna()
+    service_date = service_date.copy()
+    service_date.loc[fill_mask] = fill_values.loc[fill_mask]
+    imputed_flag.loc[fill_mask] = 1
+    return service_date, imputed_flag
+
+
 def _normalize_columns_with_aliases(raw_df: pd.DataFrame, dataset_key: str, aliases: dict[str, Any]) -> pd.DataFrame:
     dataset_aliases = aliases.get(dataset_key, {})
     if dataset_aliases:
@@ -81,6 +111,119 @@ def _add_missing_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
     return df[columns]
 
 
+def _read_lookup_table(path: Path) -> pd.DataFrame:
+    if path.suffix.lower() == ".parquet":
+        return pd.read_parquet(path)
+    if path.suffix.lower() == ".csv":
+        return pd.read_csv(path)
+    raise ValueError(f"Formato de lookup no soportado: {path}")
+
+
+def _normalize_external_order_lookup(raw_lookup: pd.DataFrame) -> pd.DataFrame:
+    lookup = raw_lookup.copy()
+    lookup.columns = [normalize_column_name(column) for column in lookup.columns]
+    alias_candidates = {
+        "pallet": ["paleta"],
+        "sku": ["articulo", "artículo"],
+        "completed_at": ["fecha_finalizacion", "fecha finalización", "fecha finalizacion"],
+        "quantity": ["cantidad"],
+        "owner": ["propietario"],
+        "order_id": ["pedido"],
+        "external_order_id": ["pedido_externo"],
+        "client": ["cliente"],
+        "external_client": ["cliente_externo"],
+    }
+    for target, candidates in alias_candidates.items():
+        if target not in lookup.columns:
+            match = next((normalize_column_name(candidate) for candidate in candidates if normalize_column_name(candidate) in lookup.columns), None)
+            if match is not None:
+                lookup[target] = lookup[match]
+
+    normalized = pd.DataFrame(index=lookup.index)
+    normalized["pallet"] = _string_code(lookup.get("pallet"))
+    normalized["sku"] = _string_code(lookup.get("sku"))
+    normalized["completed_at"] = _coerce_datetime(lookup.get("completed_at"))
+    normalized["quantity"] = _coerce_number(lookup.get("quantity"))
+    normalized["owner"] = _string_code(lookup.get("owner"))
+    normalized["order_id"] = _string_code(lookup.get("order_id"))
+    normalized["external_order_id"] = _string_code(lookup.get("external_order_id"))
+    normalized["client"] = _string_code(lookup.get("client"))
+    normalized["external_client"] = _string_code(lookup.get("external_client"))
+
+    required_columns = MOVIMIENTOS_LOOKUP_KEY_COLUMNS + ["external_order_id"]
+    normalized = normalized.dropna(subset=required_columns)
+    normalized = normalized.drop_duplicates(MOVIMIENTOS_LOOKUP_KEY_COLUMNS + MOVIMIENTOS_LOOKUP_FILL_COLUMNS)
+    ambiguous = normalized.duplicated(MOVIMIENTOS_LOOKUP_KEY_COLUMNS, keep=False)
+    if ambiguous.any():
+        LOGGER.warning(
+            "Lookup de Pedido externo: se ignoran %s filas con clave ambigua.",
+            int(ambiguous.sum()),
+        )
+        normalized = normalized.loc[~ambiguous].copy()
+    return normalized.drop_duplicates(MOVIMIENTOS_LOOKUP_KEY_COLUMNS)
+
+
+def _load_external_order_lookup(paths: PipelinePaths | None = None) -> pd.DataFrame | None:
+    if os.getenv("WAREHOUSE_ENABLE_MOVIMIENTOS_LOOKUP", "").strip().lower() not in {"1", "true", "yes", "si"}:
+        return None
+
+    paths = paths or get_paths()
+    for filename in EXTERNAL_ORDER_LOOKUP_FILENAMES:
+        path = paths.input_dir / filename
+        if not path.exists():
+            continue
+        try:
+            lookup = _normalize_external_order_lookup(_read_lookup_table(path))
+            LOGGER.info("Lookup de Pedido externo cargado desde %s rows=%s", path, len(lookup))
+            return lookup
+        except Exception as exc:
+            LOGGER.warning("No se pudo cargar el lookup de Pedido externo %s: %s", path, exc)
+    return None
+
+
+def _enrich_external_order_id(output: pd.DataFrame, lookup: pd.DataFrame | None = None) -> pd.DataFrame:
+    output = output.copy()
+    output["external_order_id_enriched"] = 0
+    output["external_order_id_source"] = pd.Series(pd.NA, index=output.index, dtype="string")
+    source_mask = output["external_order_id"].notna()
+    output.loc[source_mask, "external_order_id_source"] = "source"
+
+    if lookup is None or lookup.empty:
+        return output
+
+    missing_mask = (
+        output["external_order_id"].isna()
+        & output["movement_type"].eq("PI")
+        & output[MOVIMIENTOS_LOOKUP_KEY_COLUMNS].notna().all(axis=1)
+    )
+    if not missing_mask.any():
+        return output
+
+    lookup_for_merge = lookup[MOVIMIENTOS_LOOKUP_KEY_COLUMNS + MOVIMIENTOS_LOOKUP_FILL_COLUMNS].rename(
+        columns={column: f"{column}_lookup" for column in MOVIMIENTOS_LOOKUP_FILL_COLUMNS}
+    )
+    candidates = output.loc[missing_mask, MOVIMIENTOS_LOOKUP_KEY_COLUMNS].copy()
+    candidates["__row_index"] = candidates.index
+    matched = candidates.merge(lookup_for_merge, on=MOVIMIENTOS_LOOKUP_KEY_COLUMNS, how="left")
+    matched = matched.loc[matched["external_order_id_lookup"].notna()].copy()
+    if matched.empty:
+        return output
+
+    matched = matched.drop_duplicates("__row_index")
+    row_index = matched["__row_index"]
+    for column in MOVIMIENTOS_LOOKUP_FILL_COLUMNS:
+        lookup_column = f"{column}_lookup"
+        fill_values = pd.Series(matched[lookup_column].to_numpy(), index=row_index)
+        fill_mask = output.loc[row_index, column].isna() & fill_values.notna()
+        if fill_mask.any():
+            output.loc[row_index[fill_mask.to_numpy()], column] = fill_values.loc[fill_mask].to_numpy()
+
+    output.loc[row_index, "external_order_id_enriched"] = 1
+    output.loc[row_index, "external_order_id_source"] = "lookup"
+    LOGGER.info("Pedido externo enriquecido en movimientos PI: %s filas", len(row_index))
+    return output
+
+
 def normalize_movimientos(raw_df: pd.DataFrame, aliases: dict[str, Any] | None = None) -> pd.DataFrame:
     aliases = aliases or load_column_aliases()
     df = _normalize_columns_with_aliases(raw_df, "movimientos", aliases)
@@ -95,6 +238,7 @@ def normalize_movimientos(raw_df: pd.DataFrame, aliases: dict[str, Any] | None =
         "owner": ["propietario"],
         "operator": ["operario", "denominacion_operario"],
         "location": ["ubicacion"],
+        "pallet": ["paleta"],
         "order_id": ["pedido"],
         "external_order_id": ["pedido_externo"],
         "client": ["cliente"],
@@ -117,10 +261,12 @@ def normalize_movimientos(raw_df: pd.DataFrame, aliases: dict[str, Any] | None =
     output["owner"] = _string_code(df.get("owner"))
     output["operator"] = _text(df.get("operator"))
     output["location"] = _string_code(df.get("location"))
+    output["pallet"] = _string_code(df.get("pallet"))
     output["order_id"] = _string_code(df.get("order_id"))
     output["external_order_id"] = _string_code(df.get("external_order_id"))
     output["client"] = _string_code(df.get("client"))
     output["external_client"] = _string_code(df.get("external_client"))
+    output = _enrich_external_order_id(output, _load_external_order_lookup())
     output["generic_code"] = pd.NA
     output["service_code"] = output["external_order_id"]
     output["service_type"] = pd.NA
@@ -137,10 +283,12 @@ def normalize_movimientos(raw_df: pd.DataFrame, aliases: dict[str, Any] | None =
 def normalize_lineas(raw_df: pd.DataFrame, aliases: dict[str, Any] | None = None) -> pd.DataFrame:
     aliases = aliases or load_column_aliases()
     df = _normalize_columns_with_aliases(raw_df, "solicitudes", aliases)
+    service_date, service_date_imputed = _fill_service_date_from_request(df)
     output = pd.DataFrame(index=df.index)
     output["request_id"] = _string_code(df.get("id"))
     output["request_code"] = _string_code(df.get("solicitud"))
-    output["service_date"] = _coerce_datetime(df.get("fecha_servicio")).dt.normalize()
+    output["service_date"] = service_date
+    output["service_date_imputed_from_request"] = service_date_imputed
     output["created_at"] = _coerce_datetime(df.get("creacion_solicitud"))
     output["order_id"] = _string_code(df.get("pedido"))
     output["sku"] = _string_code(df.get("articulo"))

@@ -3,12 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@11.5.3",
   "scripts": {
     "dev": "vite",
     "sync:data": "node scripts/sync-consumption-data.mjs",
-    "dev:with-data": "npm run sync:data && vite",
+    "dev:with-data": "pnpm run sync:data && vite",
     "build": "tsc -b && vite build",
-    "build:release": "npm run sync:data && npm run build",
+    "build:release": "pnpm run sync:data && pnpm run build",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -1,0 +1,17 @@
+{
+  "fecha_referencia": "2026-06-10",
+  "conteo_temporalidad_clase": {
+    "Regular": 650,
+    "Nuevo / sin historico suficiente": 596,
+    "Estacional": 20,
+    "Intermitente": 4
+  },
+  "conteo_acciones_recomendadas": {
+    "Conviene mantener accesible": 1002,
+    "Candidato a revisar para almacen secundario": 246,
+    "Candidato a mover fuera de temporada": 18,
+    "Revisar manualmente": 4
+  },
+  "numero_candidatos_mover": 264,
+  "numero_candidatos_mantener": 1002
+}

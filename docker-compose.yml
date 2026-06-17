@@ -31,7 +31,7 @@ services:
     volumes:
       - ./:/workspace
       - dashboard_node_modules:/workspace/dashboard/node_modules
-      - dashboard_npm_cache:/root/.npm
+      - dashboard_pnpm_store:/pnpm/store
     init: true
     stdin_open: true
     tty: true
@@ -48,9 +48,9 @@ services:
     volumes:
       - ./:/workspace
       - dashboard_node_modules:/workspace/dashboard/node_modules
-      - dashboard_npm_cache:/root/.npm
+      - dashboard_pnpm_store:/pnpm/store
     init: true
 
 volumes:
   dashboard_node_modules:
-  dashboard_npm_cache:
+  dashboard_pnpm_store:

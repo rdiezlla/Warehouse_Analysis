@@ -6,7 +6,7 @@ Aplicacion local modular para analisis operativo de almacen con tres modulos:
 - ABC
 - Market Basket
 
-El flujo principal es Docker. No hace falta ejecutar `npm install`, `npm run dev` ni instalar dependencias Python en el host para el uso normal.
+El flujo principal es Docker. No hace falta ejecutar `pnpm install`, `pnpm run dev` ni instalar dependencias Python en el host para el uso normal.
 
 ## Comandos Principales
 
@@ -14,6 +14,12 @@ Levantar dashboard:
 
 ```bash
 docker compose up --build dashboard-dev
+```
+
+La URL local es:
+
+```text
+http://localhost:5173/
 ```
 
 Ejecutar todos los pipelines:
@@ -49,8 +55,10 @@ docker compose run --rm pipeline python -m compileall src
 Build del dashboard:
 
 ```bash
-docker compose run --rm dashboard-build npm run build
+docker compose run --rm dashboard-build pnpm run build
 ```
+
+Este comando solo compila la app en `dashboard/dist`; no levanta un servidor ni muestra un localhost.
 
 ## Datos Locales
 
@@ -65,13 +73,28 @@ Contenido esperado:
 ```text
 data/input/
   movimientos.xlsx
+  movimientos_pedido_externo_lookup.parquet
   lineas_solicitudes_con_pedidos.xlsx
   maestro_dimensiones_limpio.xlsx
   Informacion_albaranaes.xlsx
-  29-04-2026.xlsx
+  26-05-2026.xlsx
 ```
 
-La foto de stock puede tener cualquier fecha con formato `dd-mm-yyyy.xlsx`; si hay varias fotos en `data/input/`, el pipeline usa la mas reciente. En tu caso actual, la foto correcta es `29-04-2026.xlsx`.
+La foto de stock puede tener cualquier fecha con formato `dd-mm-yyyy.xlsx`; si hay varias fotos en `data/input/`, el pipeline usa la mas reciente.
+
+`movimientos_pedido_externo_lookup.parquet` es una herramienta opcional de recuperacion si un export antiguo de `movimientos.xlsx` no trae `Pedido externo` en movimientos PI historicos. No se usa por defecto para no ocultar errores de origen. Se genera una vez desde el historico con:
+
+```bash
+docker compose run --rm pipeline python -m src.pipelines.common.build_movimientos_lookup
+```
+
+Para usarlo de forma explicita en una ejecucion concreta:
+
+```bash
+WAREHOUSE_ENABLE_MOVIMIENTOS_LOOKUP=1 docker compose run --rm pipeline python -m src.pipelines.market_basket.run_market_basket_pipeline
+```
+
+Si `movimientos.xlsx` ya viene corregido con `Pedido externo`, no hace falta activar este lookup.
 
 Por compatibilidad local, la capa comun todavia puede leer desde ubicaciones antiguas si falta algo en `data/input/`:
 
@@ -104,7 +127,27 @@ Los outputs modulares se escriben en:
 ```text
 data/output/forecast/
 data/output/abc/
+  abc_sku.csv
+  abc_sku.parquet
+  abc_auditoria.xlsx
+  csv/
+  parquet/
+  json/
 data/output/market_basket/
+  afinidad_pares.csv
+  afinidad_reglas.csv
+  kpi_resumen.csv
+  calidad_datos.csv
+  transacciones_resumen.csv
+  articulos_resumen.csv
+  item_metrics.csv
+  clusters_sku.csv
+  hubs_sku.csv
+  raw_temporal_pairs.csv
+  temporal_stability_metrics.csv
+  series_temporales.csv
+  plots/
+  logs/
 ```
 
 El dashboard consume solo JSON estaticos desde:
