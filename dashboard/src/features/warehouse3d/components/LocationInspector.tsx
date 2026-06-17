@@ -1,8 +1,8 @@
-import type { RackSlot } from '@/features/warehouse3d/types'
+import type { RackLocation } from '@/features/warehouse3d/types'
 import { WAREHOUSE_ZONES } from '@/features/warehouse3d/layout/warehouseLayout'
 
 interface LocationInspectorProps {
-  selectedSlot: RackSlot | null
+  selectedLocation: RackLocation | null
   onClearSelection: () => void
 }
 
@@ -10,30 +10,26 @@ const getZoneLabel = (zoneId: string) =>
   WAREHOUSE_ZONES.find((zone) => zone.id === zoneId)?.label ?? zoneId
 
 export const LocationInspector = ({
-  selectedSlot,
+  selectedLocation,
   onClearSelection,
 }: LocationInspectorProps) => {
-  if (!selectedSlot) {
+  if (!selectedLocation) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-500">
-        Selecciona un hueco del rack para ver su informacion.
+        Selecciona una ubicacion del rack para ver su informacion.
       </div>
     )
   }
 
   const rows = [
-    ['ID', selectedSlot.id],
-    ['Zona', getZoneLabel(selectedSlot.zoneId)],
-    ['Pasillo', `P${String(selectedSlot.aisle).padStart(2, '0')}`],
-    ['Lado', selectedSlot.side],
-    ['Modulo', `M${String(selectedSlot.moduleIndex).padStart(2, '0')}`],
-    [
-      'Ubicaciones',
-      `${String(selectedSlot.startLocation).padStart(3, '0')} - ${String(
-        selectedSlot.endLocation,
-      ).padStart(3, '0')}`,
-    ],
-    ['Altura', String(selectedSlot.level)],
+    ['ID', selectedLocation.id],
+    ['Zona', getZoneLabel(selectedLocation.zoneId)],
+    ['Pasillo', `P${String(selectedLocation.aisle).padStart(2, '0')}`],
+    ['Lado', selectedLocation.side],
+    ['Ubicacion', `U${String(selectedLocation.location).padStart(3, '0')}`],
+    ['Altura', String(selectedLocation.level)],
+    ['Vano', String(selectedLocation.bayIndex)],
+    ['Posicion', `${selectedLocation.positionInsideBay} de 3`],
     ['Estado', 'Vacio'],
   ]
 

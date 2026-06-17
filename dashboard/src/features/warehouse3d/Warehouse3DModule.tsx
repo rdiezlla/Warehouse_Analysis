@@ -6,42 +6,36 @@ import { WarehouseControls } from '@/features/warehouse3d/components/WarehouseCo
 import { WarehouseLegend } from '@/features/warehouse3d/components/WarehouseLegend'
 import { WarehouseScene } from '@/features/warehouse3d/components/WarehouseScene'
 import {
-  LOCATIONS_PER_MODULE,
-  WAREHOUSE_SLOTS,
-  WAREHOUSE_ZONES,
+  RACK_LEVELS,
+  WAREHOUSE_LOCATIONS,
+  WAREHOUSE_ZONE_SUMMARIES,
 } from '@/features/warehouse3d/layout/warehouseLayout'
-import type { RackLevelFilter, RackSlot } from '@/features/warehouse3d/types'
+import type { RackLevelFilter, RackLocation } from '@/features/warehouse3d/types'
 
 export const Warehouse3DModule = () => {
   const [selectedLevel, setSelectedLevel] = useState<RackLevelFilter>('all')
   const [showLabels, setShowLabels] = useState(true)
   const [showReferenceZones, setShowReferenceZones] = useState(true)
-  const [selectedSlot, setSelectedSlot] = useState<RackSlot | null>(null)
+  const [selectedLocation, setSelectedLocation] = useState<RackLocation | null>(null)
 
-  const visibleSlots = useMemo(
+  const visibleLocations = useMemo(
     () =>
       selectedLevel === 'all'
-        ? WAREHOUSE_SLOTS
-        : WAREHOUSE_SLOTS.filter((slot) => slot.level === selectedLevel),
+        ? WAREHOUSE_LOCATIONS
+        : WAREHOUSE_LOCATIONS.filter((location) => location.level === selectedLevel),
     [selectedLevel],
   )
 
   const stats = useMemo(() => {
-    const zoneSummaries = WAREHOUSE_ZONES.map((zone) => {
-      const modulesPerFace =
-        (zone.endLocation - zone.startLocation + 1) / LOCATIONS_PER_MODULE
-
-      return {
-        id: zone.id,
-        label: zone.label,
-        faces: zone.faces.length,
-        modulesPerFace,
-      }
-    })
+    const locationsPerLevel = WAREHOUSE_ZONE_SUMMARIES.reduce(
+      (total, zone) => total + zone.locationsPerLevel,
+      0,
+    )
 
     return {
-      slotCount: WAREHOUSE_SLOTS.length,
-      zoneSummaries,
+      locationCount: WAREHOUSE_LOCATIONS.length,
+      locationsPerLevel,
+      zoneSummaries: WAREHOUSE_ZONE_SUMMARIES,
     }
   }, [])
 
@@ -55,7 +49,7 @@ export const Warehouse3DModule = () => {
           Layout 3D - Traslado Villaverde
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-500">
-          Representacion inicial de racks vacios por pasillo, lado, modulo y altura.
+          Representacion inicial de racks vacios por pasillo, lado, ubicacion y altura.
         </p>
       </div>
 
@@ -67,21 +61,21 @@ export const Warehouse3DModule = () => {
                 Almacen 3D vacio
               </h2>
               <p className="mt-1 text-xs text-slate-500">
-                Zona A: 14 modulos desde U037. Zona B: 20 modulos desde U001.
+                Pasillos P07-P26 con calles, pilares cada 3 ubicaciones y huecos unitarios.
               </p>
             </div>
             <div className="text-right text-xs font-medium text-slate-500">
-              {visibleSlots.length} huecos visibles de {stats.slotCount}
+              {visibleLocations.length} ubicaciones visibles de {stats.locationCount}
             </div>
           </div>
 
           <div className="h-[min(72vh,700px)] min-h-[520px]">
             <WarehouseScene
-              slots={visibleSlots}
-              selectedSlotId={selectedSlot?.id ?? null}
+              locations={visibleLocations}
+              selectedLocation={selectedLocation}
               showLabels={showLabels}
               showReferenceZones={showReferenceZones}
-              onSelectSlot={setSelectedSlot}
+              onSelectLocation={setSelectedLocation}
             />
           </div>
         </Panel>
@@ -102,8 +96,8 @@ export const Warehouse3DModule = () => {
           <Panel className="animate-rise">
             <h2 className="mb-4 text-base font-semibold text-slate-900">Inspector</h2>
             <LocationInspector
-              selectedSlot={selectedSlot}
-              onClearSelection={() => setSelectedSlot(null)}
+              selectedLocation={selectedLocation}
+              onClearSelection={() => setSelectedLocation(null)}
             />
           </Panel>
 
@@ -118,9 +112,18 @@ export const Warehouse3DModule = () => {
               {stats.zoneSummaries.map((zone) => (
                 <p key={zone.id}>
                   <span className="font-semibold text-slate-800">{zone.label}:</span>{' '}
-                  {zone.faces} caras, {zone.modulesPerFace} modulos por cara.
+                  pasillos {zone.aisleLabel}, ubicaciones {zone.locationLabel},{' '}
+                  {zone.faceCount} caras, {zone.locationsPerLevel} ubicaciones por altura.
                 </p>
               ))}
+              <p>
+                <span className="font-semibold text-slate-800">Total por altura:</span>{' '}
+                {stats.locationsPerLevel} ubicaciones.
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Total con todas las alturas:</span>{' '}
+                {stats.locationCount} ubicaciones en {RACK_LEVELS.length} alturas.
+              </p>
             </div>
           </Panel>
         </div>

@@ -1,120 +1,254 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Canvas, type ThreeEvent, useThree } from '@react-three/fiber'
-import { Edges, OrbitControls, Text } from '@react-three/drei'
+import { OrbitControls, Text } from '@react-three/drei'
+import * as THREE from 'three'
 
-import type { RackSlot } from '@/features/warehouse3d/types'
+import type {
+  RackBeam,
+  RackLocation,
+  RackPillar,
+} from '@/features/warehouse3d/types'
 import {
+  AISLE_WIDTH,
+  BEAM_HEIGHT,
   LEVEL_HEIGHT,
-  MODULE_DEPTH,
-  MODULE_WIDTH,
-  WAREHOUSE_MODULES,
-  WAREHOUSE_ZONES,
+  LOCATION_DEPTH,
+  LOCATION_HEIGHT,
+  LOCATION_WIDTH,
+  PILLAR_WIDTH,
+  RACK_DEPTH,
+  RACK_LEVELS,
+  WAREHOUSE_AISLE_MARKERS,
+  WAREHOUSE_BEAMS,
+  WAREHOUSE_FACES,
+  WAREHOUSE_LOCATION_LABELS,
+  WAREHOUSE_PILLARS,
 } from '@/features/warehouse3d/layout/warehouseLayout'
 
 interface WarehouseSceneProps {
-  slots: RackSlot[]
-  selectedSlotId: string | null
+  locations: RackLocation[]
+  selectedLocation: RackLocation | null
   showLabels: boolean
   showReferenceZones: boolean
-  onSelectSlot: (slot: RackSlot) => void
+  onSelectLocation: (location: RackLocation) => void
 }
 
-interface FaceLabel {
-  id: string
-  label: string
-  x: number
-  z: number
-  zoneId: string
-}
-
-const zoneColors: Record<string, string> = {
-  'zone-a': '#0891b2',
-  'zone-b': '#059669',
-}
+const locationColor = '#e2c371'
+const selectedColor = '#f59e0b'
+const structureColor = '#94a3b8'
+const aisleColor = '#f8fafc'
+const floorColor = '#e2e8f0'
 
 const referenceZones = [
-  { label: 'Almacenamiento suelo 1', x: -4.8, z: 7.5, width: 3.2, depth: 8.8 },
-  { label: 'Almacenamiento suelo 2', x: -1.2, z: 7.5, width: 3.2, depth: 8.8 },
+  { label: 'Almacenamiento suelo 1', x: -4.5, z: 13, width: 3.2, depth: 16 },
+  { label: 'Almacenamiento suelo 2', x: -1.1, z: 13, width: 3.2, depth: 16 },
   {
     label: 'Playas recepcion/expedicion Mahou',
-    x: 6.5,
-    z: 22,
-    width: 10,
+    x: 12,
+    z: 29,
+    width: 18,
     depth: 4.5,
   },
   {
     label: 'Playas recepcion/expedicion Red Bull',
-    x: 18.4,
-    z: 22,
-    width: 8,
+    x: 32,
+    z: 29,
+    width: 13,
     depth: 4.5,
   },
-  { label: 'Zona cross-docking', x: 26.2, z: 22, width: 4.2, depth: 4.5 },
+  { label: 'Zona cross-docking', x: 48, z: 29, width: 6, depth: 4.5 },
 ]
 
-const getBounds = (items: Array<Pick<RackSlot, 'x' | 'z'>>) => {
-  const xs = items.map((item) => item.x)
-  const zs = items.map((item) => item.z)
+const matrix = new THREE.Matrix4()
+
+const getBounds = () => {
+  const xs = [
+    ...WAREHOUSE_FACES.map((face) => face.x),
+    ...referenceZones.map((zone) => zone.x - zone.width / 2),
+    ...referenceZones.map((zone) => zone.x + zone.width / 2),
+  ]
+  const zs = [
+    ...WAREHOUSE_FACES.map((face) => face.zStart),
+    ...WAREHOUSE_FACES.map((face) => face.zEnd),
+    ...referenceZones.map((zone) => zone.z - zone.depth / 2),
+    ...referenceZones.map((zone) => zone.z + zone.depth / 2),
+  ]
 
   return {
-    minX: Math.min(...xs, -6),
-    maxX: Math.max(...xs, 30),
-    minZ: Math.min(...zs, 0),
-    maxZ: Math.max(...zs, 25),
+    minX: Math.min(...xs) - 2,
+    maxX: Math.max(...xs) + 2,
+    minZ: Math.min(...zs) - 1.6,
+    maxZ: Math.max(...zs) + 2,
   }
 }
 
-const buildFaceLabels = (): FaceLabel[] =>
-  WAREHOUSE_ZONES.flatMap((zone) =>
-    zone.faces.map((faceConfig) => {
-      const faceModules = WAREHOUSE_MODULES.filter(
-        (rackModule) =>
-          rackModule.zoneId === zone.id &&
-          rackModule.aisle === faceConfig.aisle &&
-          rackModule.side === faceConfig.side,
-      )
-      const firstModule = faceModules[0]
-      const lastModule = faceModules.at(-1)
+const CameraSetup = () => {
+  const { camera } = useThree()
 
-      return {
-        id: `${zone.id}-${faceConfig.aisle}-${faceConfig.side}`,
-        label: `P${String(faceConfig.aisle).padStart(2, '0')} ${faceConfig.side}`,
-        x: firstModule?.x ?? 0,
-        z: lastModule ? lastModule.z + MODULE_WIDTH * 0.75 : 0,
-        zoneId: zone.id,
-      }
-    }),
-  )
+  useEffect(() => {
+    camera.position.set(26, 19, 36)
+    camera.lookAt(0, 1.8, 1.5)
+    camera.updateProjectionMatrix()
+  }, [camera])
 
-const RackSlotBox = ({
-  slot,
-  isSelected,
-  onSelectSlot,
+  return null
+}
+
+const InstancedLocations = ({
+  locations,
+  onSelectLocation,
 }: {
-  slot: RackSlot
-  isSelected: boolean
-  onSelectSlot: (slot: RackSlot) => void
+  locations: RackLocation[]
+  onSelectLocation: (location: RackLocation) => void
 }) => {
-  const color = isSelected ? '#f59e0b' : zoneColors[slot.zoneId] ?? '#64748b'
+  const meshRef = useRef<THREE.InstancedMesh>(null)
+
+  useEffect(() => {
+    const mesh = meshRef.current
+
+    if (!mesh) {
+      return
+    }
+
+    locations.forEach((location, index) => {
+      matrix.setPosition(location.x, location.y, location.z)
+      mesh.setMatrixAt(index, matrix)
+    })
+
+    mesh.instanceMatrix.needsUpdate = true
+  }, [locations])
 
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation()
-    onSelectSlot(slot)
+
+    if (event.instanceId === undefined) {
+      return
+    }
+
+    const location = locations[event.instanceId]
+
+    if (location) {
+      onSelectLocation(location)
+    }
   }
 
   return (
-    <mesh position={[slot.x, slot.y, slot.z]} onClick={handleClick}>
-      <boxGeometry args={[MODULE_DEPTH, LEVEL_HEIGHT * 0.72, MODULE_WIDTH * 0.82]} />
-      <meshStandardMaterial color={color} transparent opacity={isSelected ? 0.95 : 0.34} />
-      <Edges color={isSelected ? '#78350f' : '#334155'} />
-    </mesh>
+    <instancedMesh
+      ref={meshRef}
+      args={[undefined, undefined, locations.length]}
+      onClick={handleClick}
+    >
+      <boxGeometry args={[LOCATION_DEPTH, LOCATION_HEIGHT, LOCATION_WIDTH * 0.82]} />
+      <meshStandardMaterial color={locationColor} roughness={0.72} metalness={0.08} />
+    </instancedMesh>
   )
 }
+
+const InstancedPillars = ({ pillars }: { pillars: RackPillar[] }) => {
+  const meshRef = useRef<THREE.InstancedMesh>(null)
+
+  useEffect(() => {
+    const mesh = meshRef.current
+
+    if (!mesh) {
+      return
+    }
+
+    pillars.forEach((pillar, index) => {
+      matrix.setPosition(
+        pillar.x,
+        (RACK_LEVELS.length * LEVEL_HEIGHT) / 2,
+        pillar.z,
+      )
+      mesh.setMatrixAt(index, matrix)
+    })
+
+    mesh.instanceMatrix.needsUpdate = true
+  }, [pillars])
+
+  return (
+    <instancedMesh ref={meshRef} args={[undefined, undefined, pillars.length]}>
+      <boxGeometry
+        args={[RACK_DEPTH * 1.08, RACK_LEVELS.length * LEVEL_HEIGHT, PILLAR_WIDTH]}
+      />
+      <meshStandardMaterial
+        color={structureColor}
+        roughness={0.55}
+        metalness={0.28}
+        transparent
+        opacity={0.78}
+      />
+    </instancedMesh>
+  )
+}
+
+const InstancedBeams = ({ beams }: { beams: RackBeam[] }) => {
+  const meshRef = useRef<THREE.InstancedMesh>(null)
+
+  useEffect(() => {
+    const mesh = meshRef.current
+
+    if (!mesh) {
+      return
+    }
+
+    beams.forEach((beam, index) => {
+      matrix.compose(
+        new THREE.Vector3(beam.x, beam.y, beam.z),
+        new THREE.Quaternion(),
+        new THREE.Vector3(RACK_DEPTH * 1.12, BEAM_HEIGHT, beam.length),
+      )
+      mesh.setMatrixAt(index, matrix)
+    })
+
+    mesh.instanceMatrix.needsUpdate = true
+  }, [beams])
+
+  return (
+    <instancedMesh ref={meshRef} args={[undefined, undefined, beams.length]}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial
+        color={structureColor}
+        roughness={0.5}
+        metalness={0.35}
+        transparent
+        opacity={0.62}
+      />
+    </instancedMesh>
+  )
+}
+
+const AisleGround = () => (
+  <group>
+    {WAREHOUSE_AISLE_MARKERS.map((aisle) => (
+      <group key={aisle.id}>
+        <mesh position={[aisle.x, 0.005, aisle.z]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[AISLE_WIDTH, aisle.length]} />
+          <meshStandardMaterial color={aisleColor} />
+        </mesh>
+        {[-0.8, aisle.z].map((zPosition) => (
+          <Text
+            key={`${aisle.id}-${zPosition}`}
+            position={[aisle.x, 0.04, zPosition]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            fontSize={0.62}
+            fontWeight={700}
+            color="#1e293b"
+            anchorX="center"
+            anchorY="middle"
+          >
+            {aisle.label}
+          </Text>
+        ))}
+      </group>
+    ))}
+  </group>
+)
 
 const ReferenceZonePlates = () => (
   <group>
     {referenceZones.map((zone) => (
-      <group key={zone.label} position={[zone.x, 0.015, zone.z]}>
+      <group key={zone.label} position={[zone.x, 0.018, zone.z]}>
         <mesh rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[zone.width, zone.depth]} />
           <meshStandardMaterial color="#cbd5e1" transparent opacity={0.36} />
@@ -122,8 +256,8 @@ const ReferenceZonePlates = () => (
         <Text
           position={[0, 0.04, 0]}
           rotation={[-Math.PI / 2, 0, 0]}
-          fontSize={0.22}
-          maxWidth={zone.width - 0.4}
+          fontSize={0.32}
+          maxWidth={zone.width - 0.6}
           textAlign="center"
           color="#475569"
           anchorX="center"
@@ -136,75 +270,77 @@ const ReferenceZonePlates = () => (
   </group>
 )
 
-const CameraSetup = () => {
-  const { camera } = useThree()
-
-  useEffect(() => {
-    camera.position.set(18, 15, 28)
-    camera.lookAt(0, 1.4, 0)
-    camera.updateProjectionMatrix()
-  }, [camera])
-
-  return null
-}
+const LocationReferenceLabels = () => (
+  <group>
+    {WAREHOUSE_LOCATION_LABELS.map((label) => (
+      <Text
+        key={label.id}
+        position={[label.x, label.y, label.z]}
+        rotation={[-Math.PI / 5, 0, 0]}
+        fontSize={0.18}
+        color="#475569"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {label.label}
+      </Text>
+    ))}
+  </group>
+)
 
 export const WarehouseScene = ({
-  slots,
-  selectedSlotId,
+  locations,
+  selectedLocation,
   showLabels,
   showReferenceZones,
-  onSelectSlot,
+  onSelectLocation,
 }: WarehouseSceneProps) => {
-  const bounds = useMemo(() => getBounds(WAREHOUSE_MODULES), [])
-  const faceLabels = useMemo(() => buildFaceLabels(), [])
+  const bounds = useMemo(() => getBounds(), [])
   const centerX = (bounds.minX + bounds.maxX) / 2
   const centerZ = (bounds.minZ + bounds.maxZ) / 2
-  const floorWidth = bounds.maxX - bounds.minX + 10
-  const floorDepth = bounds.maxZ - bounds.minZ + 9
+  const floorWidth = bounds.maxX - bounds.minX
+  const floorDepth = bounds.maxZ - bounds.minZ
+  const selectedIsVisible = locations.some(
+    (location) => location.id === selectedLocation?.id,
+  )
 
   return (
     <Canvas
-      camera={{ position: [18, 15, 28], fov: 42, near: 0.1, far: 1000 }}
+      camera={{ position: [26, 19, 36], fov: 42, near: 0.1, far: 1000 }}
       gl={{ antialias: true, preserveDrawingBuffer: true }}
-      onCreated={({ camera }) => camera.lookAt(0, 1.4, 0)}
+      onCreated={({ camera }) => camera.lookAt(0, 1.8, 1.5)}
       className="h-full w-full"
     >
       <color attach="background" args={['#f8fafc']} />
-      <ambientLight intensity={0.72} />
-      <directionalLight position={[8, 14, 10]} intensity={1.15} />
+      <ambientLight intensity={0.74} />
+      <directionalLight position={[8, 16, 12]} intensity={1.1} />
+
       <group position={[-centerX, 0, -centerZ]}>
-        <mesh position={[centerX, -0.02, centerZ + 2]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[centerX, -0.025, centerZ]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[floorWidth, floorDepth]} />
-          <meshStandardMaterial color="#e2e8f0" />
+          <meshStandardMaterial color={floorColor} />
         </mesh>
 
+        <AisleGround />
         {showReferenceZones && <ReferenceZonePlates />}
 
-        {slots.map((slot) => (
-          <RackSlotBox
-            key={slot.id}
-            slot={slot}
-            isSelected={slot.id === selectedSlotId}
-            onSelectSlot={onSelectSlot}
-          />
-        ))}
+        <InstancedLocations locations={locations} onSelectLocation={onSelectLocation} />
+        <InstancedPillars pillars={WAREHOUSE_PILLARS} />
+        <InstancedBeams beams={WAREHOUSE_BEAMS} />
 
-        {showLabels &&
-          faceLabels.map((faceLabel) => (
-            <Text
-              key={faceLabel.id}
-              position={[faceLabel.x, 3.75, faceLabel.z]}
-              rotation={[-Math.PI / 4, 0, 0]}
-              fontSize={0.25}
-              color={zoneColors[faceLabel.zoneId] ?? '#0f172a'}
-              anchorX="center"
-              anchorY="middle"
-            >
-              {faceLabel.label}
-            </Text>
-          ))}
+        {selectedLocation && selectedIsVisible && (
+          <mesh position={[selectedLocation.x, selectedLocation.y, selectedLocation.z]}>
+            <boxGeometry
+              args={[LOCATION_DEPTH * 1.12, LOCATION_HEIGHT * 1.08, LOCATION_WIDTH * 0.96]}
+            />
+            <meshStandardMaterial color={selectedColor} roughness={0.5} metalness={0.06} />
+          </mesh>
+        )}
+
+        {showLabels && <LocationReferenceLabels />}
       </group>
-      <OrbitControls makeDefault target={[0, 1.4, 0]} maxPolarAngle={Math.PI / 2.08} />
+
+      <OrbitControls makeDefault target={[0, 1.8, 1.5]} maxPolarAngle={Math.PI / 2.08} />
       <CameraSetup />
     </Canvas>
   )
