@@ -1,7 +1,13 @@
 import clsx from 'clsx'
-import { ChartLine, PackageSearch, ShoppingBasket, type LucideIcon } from 'lucide-react'
+import {
+  ChartLine,
+  PackageSearch,
+  ShoppingBasket,
+  Warehouse,
+  type LucideIcon,
+} from 'lucide-react'
 
-export type ModuleId = 'forecast' | 'abc' | 'marketBasket'
+export type ModuleId = 'forecast' | 'abc' | 'marketBasket' | 'warehouse3d'
 
 interface SidebarProps {
   activeModule: ModuleId
@@ -12,6 +18,7 @@ const menuItems = [
   { id: 'forecast', label: 'Forecast', icon: ChartLine },
   { id: 'abc', label: 'ABC', icon: PackageSearch },
   { id: 'marketBasket', label: 'Market Basket', icon: ShoppingBasket },
+  { id: 'warehouse3d', label: 'Traslado 3D', icon: Warehouse },
 ] satisfies Array<{ id: ModuleId; label: string; icon: LucideIcon }>
 
 export const Sidebar = ({ activeModule, onModuleChange }: SidebarProps) => (
