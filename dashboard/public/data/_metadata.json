@@ -1,7 +1,7 @@
 {
   "sourceMode": "consumption_outputs",
   "sourcePath": "/workspace/outputs/consumption",
-  "syncedAt": "2026-06-11T13:57:34.914Z",
+  "syncedAt": "2026-06-17T14:52:01.217Z",
   "tables": {
     "consumo_forecast_diario": 140,
     "consumo_forecast_semanal": 25,
