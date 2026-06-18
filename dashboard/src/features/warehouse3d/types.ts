@@ -2,8 +2,6 @@ export type RackSide = 'PAR' | 'IMPAR'
 
 export type RackLevel = 0 | 10 | 20 | 30 | 40
 
-export type RackLevelFilter = RackLevel | 'all'
-
 export interface WarehouseZoneConfig {
   id: string
   label: string
@@ -30,12 +28,16 @@ export interface RackFace extends RackFaceConfig {
   id: string
   x: number
   streetX: number
+  rackDepthSign: number
   zStart: number
   zEnd: number
 }
 
 export interface RackLocation {
+  uid: string
   id: string
+  bayId: string
+  faceId: string
   zoneId: string
   aisle: number
   side: RackSide
@@ -64,6 +66,23 @@ export interface RackBeam {
   length: number
 }
 
+export interface RackBay {
+  id: string
+  faceId: string
+  zoneId: string
+  aisle: number
+  side: RackSide
+  bayIndex: number
+  startLocation: number
+  endLocation: number
+  x: number
+  z: number
+  zStart: number
+  zEnd: number
+  rackDepthSign: number
+  length: number
+}
+
 export interface AisleMarker {
   id: string
   label: string
@@ -89,4 +108,13 @@ export interface ZoneSummary {
   faceCount: number
   locationsPerLevel: number
   locationsAllLevels: number
+}
+
+export interface WarehouseReferenceZone {
+  id: string
+  label: string
+  x: number
+  z: number
+  width: number
+  depth: number
 }

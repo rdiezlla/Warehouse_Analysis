@@ -1,7 +1,8 @@
 const legendItems = [
-  { label: 'Zona A parcial', className: 'bg-cyan-500' },
-  { label: 'Zona B completa', className: 'bg-emerald-500' },
+  { label: 'Ubicacion vacia', className: 'bg-slate-300' },
   { label: 'Ubicacion seleccionada', className: 'bg-amber-400' },
+  { label: 'Pilares rack', className: 'bg-blue-700' },
+  { label: 'Largueros rack', className: 'bg-red-600' },
   { label: 'Zonas suelo', className: 'bg-slate-300' },
 ]
 

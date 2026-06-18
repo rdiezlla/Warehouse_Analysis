@@ -6,38 +6,30 @@ import { WarehouseControls } from '@/features/warehouse3d/components/WarehouseCo
 import { WarehouseLegend } from '@/features/warehouse3d/components/WarehouseLegend'
 import { WarehouseScene } from '@/features/warehouse3d/components/WarehouseScene'
 import {
-  RACK_LEVELS,
   WAREHOUSE_LOCATIONS,
   WAREHOUSE_ZONE_SUMMARIES,
 } from '@/features/warehouse3d/layout/warehouseLayout'
-import type { RackLevelFilter, RackLocation } from '@/features/warehouse3d/types'
+import type { RackLocation } from '@/features/warehouse3d/types'
 
 export const Warehouse3DModule = () => {
-  const [selectedLevel, setSelectedLevel] = useState<RackLevelFilter>('all')
   const [showLabels, setShowLabels] = useState(true)
   const [showReferenceZones, setShowReferenceZones] = useState(true)
   const [selectedLocation, setSelectedLocation] = useState<RackLocation | null>(null)
 
-  const visibleLocations = useMemo(
-    () =>
-      selectedLevel === 'all'
-        ? WAREHOUSE_LOCATIONS
-        : WAREHOUSE_LOCATIONS.filter((location) => location.level === selectedLevel),
-    [selectedLevel],
-  )
-
   const stats = useMemo(() => {
-    const locationsPerLevel = WAREHOUSE_ZONE_SUMMARIES.reduce(
+    const selectableLocations = WAREHOUSE_ZONE_SUMMARIES.reduce(
       (total, zone) => total + zone.locationsPerLevel,
       0,
     )
 
     return {
-      locationCount: WAREHOUSE_LOCATIONS.length,
-      locationsPerLevel,
+      selectableLocations,
       zoneSummaries: WAREHOUSE_ZONE_SUMMARIES,
     }
   }, [])
+
+  const getOperationalRange = (zoneId: string) =>
+    zoneId === 'zone-a' ? 'P07 PAR a P20 IMPAR' : 'P20 PAR a P26 IMPAR'
 
   return (
     <div className="space-y-5">
@@ -49,7 +41,7 @@ export const Warehouse3DModule = () => {
           Layout 3D - Traslado Villaverde
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-500">
-          Representacion inicial de racks vacios por pasillo, lado, ubicacion y altura.
+          Representacion inicial de racks vacios en altura 0 por pasillo, vano y ubicacion EU.
         </p>
       </div>
 
@@ -61,17 +53,17 @@ export const Warehouse3DModule = () => {
                 Almacen 3D vacio
               </h2>
               <p className="mt-1 text-xs text-slate-500">
-                Pasillos P07-P26 con calles, pilares cada 3 ubicaciones y huecos unitarios.
+                Pasillos P07-P26 con calles, bays de 3 ubicaciones, pilares azules y largueros rojos.
               </p>
             </div>
             <div className="text-right text-xs font-medium text-slate-500">
-              {visibleLocations.length} ubicaciones visibles de {stats.locationCount}
+              {stats.selectableLocations} ubicaciones seleccionables en H00
             </div>
           </div>
 
           <div className="h-[min(72vh,700px)] min-h-[520px]">
             <WarehouseScene
-              locations={visibleLocations}
+              locations={WAREHOUSE_LOCATIONS}
               selectedLocation={selectedLocation}
               showLabels={showLabels}
               showReferenceZones={showReferenceZones}
@@ -84,10 +76,8 @@ export const Warehouse3DModule = () => {
           <Panel className="animate-rise">
             <h2 className="mb-4 text-base font-semibold text-slate-900">Controles</h2>
             <WarehouseControls
-              selectedLevel={selectedLevel}
               showLabels={showLabels}
               showReferenceZones={showReferenceZones}
-              onSelectedLevelChange={setSelectedLevel}
               onShowLabelsChange={setShowLabels}
               onShowReferenceZonesChange={setShowReferenceZones}
             />
@@ -112,17 +102,13 @@ export const Warehouse3DModule = () => {
               {stats.zoneSummaries.map((zone) => (
                 <p key={zone.id}>
                   <span className="font-semibold text-slate-800">{zone.label}:</span>{' '}
-                  pasillos {zone.aisleLabel}, ubicaciones {zone.locationLabel},{' '}
-                  {zone.faceCount} caras, {zone.locationsPerLevel} ubicaciones por altura.
+                  {getOperationalRange(zone.id)}, ubicaciones {zone.locationLabel},{' '}
+                  {zone.faceCount} caras, {zone.locationsPerLevel} ubicaciones seleccionables en H00.
                 </p>
               ))}
               <p>
-                <span className="font-semibold text-slate-800">Total por altura:</span>{' '}
-                {stats.locationsPerLevel} ubicaciones.
-              </p>
-              <p>
-                <span className="font-semibold text-slate-800">Total con todas las alturas:</span>{' '}
-                {stats.locationCount} ubicaciones en {RACK_LEVELS.length} alturas.
+                <span className="font-semibold text-slate-800">Total:</span>{' '}
+                {stats.selectableLocations} ubicaciones seleccionables en altura 0.
               </p>
             </div>
           </Panel>

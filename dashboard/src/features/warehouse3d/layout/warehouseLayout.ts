@@ -1,32 +1,37 @@
 import type {
   AisleMarker,
   LocationLabel,
-  RackBeam,
+  RackBay,
   RackFace,
   RackFaceConfig,
   RackLevel,
   RackLocation,
-  RackPillar,
   RackSide,
   WarehouseAisleConfig,
+  WarehouseReferenceZone,
   WarehouseZoneConfig,
   ZoneSummary,
 } from '@/features/warehouse3d/types'
 
 export const RACK_LEVELS = [0, 10, 20, 30, 40] as const satisfies RackLevel[]
+export const VISIBLE_RACK_LEVELS: readonly RackLevel[] = [0]
 
 export const LOCATIONS_PER_BAY = 3
 
-export const LOCATION_WIDTH = 0.18
-export const LOCATION_DEPTH = 0.34
-export const LOCATION_HEIGHT = 0.42
-export const LEVEL_HEIGHT = 0.58
-export const RACK_DEPTH = 0.46
-export const AISLE_WIDTH = 1.45
-export const AISLE_SPACING = 2.75
-export const BAY_GAP = 0.08
-export const PILLAR_WIDTH = 0.055
-export const BEAM_HEIGHT = 0.035
+export const LOCATION_WIDTH = 0.85
+export const LOCATION_DEPTH = 0.95
+export const LOCATION_HEIGHT = 1.2
+export const LOCATION_GAP = 0.04
+export const BAY_WIDTH = LOCATIONS_PER_BAY * LOCATION_WIDTH + (LOCATIONS_PER_BAY - 1) * LOCATION_GAP
+export const BAY_GAP = 0.22
+export const POST_WIDTH = 0.12
+export const POST_HEIGHT = 1.75
+export const BEAM_HEIGHT = 0.12
+export const BEAM_DEPTH = 0.14
+export const RACK_DEPTH = LOCATION_DEPTH + POST_WIDTH * 2
+export const RACK_VISUAL_HEIGHT = POST_HEIGHT
+export const AISLE_WIDTH = 2.4
+export const AISLE_SPACING = 4.2
 
 const FIRST_AISLE = 7
 const LAST_AISLE = 26
@@ -55,11 +60,10 @@ export const WAREHOUSE_ZONES: WarehouseZoneConfig[] = [
 
 export const formatLocationId = ({
   aisle,
-  side,
   location,
   level,
-}: Pick<RackLocation, 'aisle' | 'side' | 'location' | 'level'>) =>
-  `P${padNumber(aisle, 2)}-${side}-U${padNumber(location, 3)}-H${padNumber(level, 2)}`
+}: Pick<RackLocation, 'aisle' | 'location' | 'level'>) =>
+  `${padNumber(aisle, 2)}-${padNumber(location, 3)}-${padNumber(level, 2)}`
 
 const formatFaceId = ({
   aisle,
@@ -121,26 +125,39 @@ export const getBayIndex = (startLocation: number, location: number) =>
 export const getPositionInsideBay = (startLocation: number, location: number) =>
   ((location - startLocation) % LOCATIONS_PER_BAY) + 1
 
+const getFaceLocations = (face: Pick<RackFaceConfig, 'startLocation' | 'endLocation'>) =>
+  Array.from(
+    { length: face.endLocation - face.startLocation + 1 },
+    (_, locationOffset) => face.startLocation + locationOffset,
+  )
+
 const getStreetX = (aisle: number) => (aisle - FIRST_AISLE) * AISLE_SPACING
 
-const getRackX = (aisle: number, side: RackSide) => {
+export const getRackDepthSign = (side: RackSide) => (side === 'IMPAR' ? 1 : -1)
+
+export const getRackX = (aisle: number, side: RackSide) => {
   const sideSign = side === 'IMPAR' ? -1 : 1
   return getStreetX(aisle) + sideSign * (AISLE_WIDTH / 2 + RACK_DEPTH / 2)
 }
 
-const getLocationZ = (location: number) =>
-  (location - 1) * LOCATION_WIDTH + Math.floor((location - 1) / LOCATIONS_PER_BAY) * BAY_GAP
+export const getLocationZ = (location: number) => {
+  const zeroBasedLocation = location - 1
+  const bayIndex = Math.floor(zeroBasedLocation / LOCATIONS_PER_BAY)
+  const positionInsideBay = zeroBasedLocation % LOCATIONS_PER_BAY
+
+  return bayIndex * (BAY_WIDTH + BAY_GAP) + positionInsideBay * (LOCATION_WIDTH + LOCATION_GAP)
+}
 
 export const getLocationPosition = (
   face: RackFaceConfig,
   location: number,
   level: RackLevel,
 ) => {
-  const levelIndex = RACK_LEVELS.indexOf(level)
+  const levelIndex = VISIBLE_RACK_LEVELS.indexOf(level)
 
   return {
     x: getRackX(face.aisle, face.side),
-    y: levelIndex * LEVEL_HEIGHT + LEVEL_HEIGHT / 2,
+    y: levelIndex * LOCATION_HEIGHT + LOCATION_HEIGHT / 2,
     z: getLocationZ(location),
   }
 }
@@ -154,33 +171,40 @@ export const buildRackFaces = (
       id: formatFaceId(face),
       x: getRackX(face.aisle, face.side),
       streetX: getStreetX(face.aisle),
+      rackDepthSign: getRackDepthSign(face.side),
       zStart: getLocationZ(face.startLocation) - LOCATION_WIDTH / 2,
       zEnd: getLocationZ(face.endLocation) + LOCATION_WIDTH / 2,
     })),
   )
 
+const formatBayId = (face: RackFace, bayIndex: number) => `${face.id}-bay-${bayIndex}`
+
 export const buildRackLocations = (faces: RackFace[] = buildRackFaces()): RackLocation[] =>
   faces.flatMap((face) =>
-    Array.from(
-      { length: face.endLocation - face.startLocation + 1 },
-      (_, locationOffset) => face.startLocation + locationOffset,
-    ).flatMap((location) =>
-      RACK_LEVELS.map((level) => {
+    getFaceLocations(face).flatMap((location) =>
+      VISIBLE_RACK_LEVELS.map((level) => {
+        const bayIndex = getBayIndex(face.startLocation, location)
+        const positionInsideBay = getPositionInsideBay(face.startLocation, location)
         const position = getLocationPosition(face, location, level)
         const locationData = {
+          bayId: formatBayId(face, bayIndex),
+          faceId: face.id,
           zoneId: face.zoneId,
           aisle: face.aisle,
           side: face.side,
           location,
           level,
-          bayIndex: getBayIndex(face.startLocation, location),
-          positionInsideBay: getPositionInsideBay(face.startLocation, location),
+          bayIndex,
+          positionInsideBay,
           ...position,
         }
 
+        const id = formatLocationId(locationData)
+
         return {
           ...locationData,
-          id: formatLocationId(locationData),
+          id,
+          uid: `${face.id}-${id}`,
         }
       }),
     ),
@@ -188,63 +212,43 @@ export const buildRackLocations = (faces: RackFace[] = buildRackFaces()): RackLo
 
 const getBayRanges = (face: RackFace) => {
   const ranges: Array<{ startLocation: number; endLocation: number }> = []
+  const locations = getFaceLocations(face)
 
-  for (
-    let startLocation = face.startLocation;
-    startLocation <= face.endLocation;
-    startLocation += LOCATIONS_PER_BAY
-  ) {
+  for (let index = 0; index < locations.length; index += LOCATIONS_PER_BAY) {
+    const bayLocations = locations.slice(index, index + LOCATIONS_PER_BAY)
+
     ranges.push({
-      startLocation,
-      endLocation: Math.min(startLocation + LOCATIONS_PER_BAY - 1, face.endLocation),
+      startLocation: bayLocations[0],
+      endLocation: bayLocations[bayLocations.length - 1],
     })
   }
 
   return ranges
 }
 
-export const buildRackPillars = (faces: RackFace[] = buildRackFaces()): RackPillar[] =>
-  faces.flatMap((face) => {
-    const pillars: RackPillar[] = []
-    const bayRanges = getBayRanges(face)
-
-    bayRanges.forEach((bay, index) => {
-      if (index === 0) {
-        pillars.push({
-          id: `${face.id}-pillar-start`,
-          faceId: face.id,
-          x: face.x,
-          z: getLocationZ(bay.startLocation) - LOCATION_WIDTH / 2 - BAY_GAP / 2,
-        })
-      }
-
-      pillars.push({
-        id: `${face.id}-pillar-${index + 1}`,
-        faceId: face.id,
-        x: face.x,
-        z: getLocationZ(bay.endLocation) + LOCATION_WIDTH / 2 + BAY_GAP / 2,
-      })
-    })
-
-    return pillars
-  })
-
-export const buildRackBeams = (faces: RackFace[] = buildRackFaces()): RackBeam[] =>
+export const buildRackBays = (faces: RackFace[] = buildRackFaces()): RackBay[] =>
   faces.flatMap((face) =>
-    getBayRanges(face).flatMap((bay, bayIndex) => {
+    getBayRanges(face).map((bay, index) => {
+      const bayIndex = index + 1
       const zStart = getLocationZ(bay.startLocation) - LOCATION_WIDTH / 2
       const zEnd = getLocationZ(bay.endLocation) + LOCATION_WIDTH / 2
-      const z = (zStart + zEnd) / 2
-      const length = zEnd - zStart
 
-      return Array.from({ length: RACK_LEVELS.length + 1 }, (_, levelIndex) => ({
-        id: `${face.id}-bay-${bayIndex + 1}-beam-${levelIndex}`,
+      return {
+        id: formatBayId(face, bayIndex),
         faceId: face.id,
+        zoneId: face.zoneId,
+        aisle: face.aisle,
+        side: face.side,
+        bayIndex,
+        startLocation: bay.startLocation,
+        endLocation: bay.endLocation,
         x: face.x,
-        y: levelIndex * LEVEL_HEIGHT,
-        z,
-        length,
-      }))
+        z: (zStart + zEnd) / 2,
+        zStart,
+        zEnd,
+        rackDepthSign: face.rackDepthSign,
+        length: zEnd - zStart,
+      }
     }),
   )
 
@@ -256,7 +260,7 @@ export const buildAisleMarkers = (
     label: `P${padNumber(aisle.aisle, 2)}`,
     aisle: aisle.aisle,
     x: getStreetX(aisle.aisle),
-    z: getLocationZ(60),
+    z: (getLocationZ(1) + getLocationZ(120)) / 2,
     length: getLocationZ(120) + LOCATION_WIDTH,
   }))
 
@@ -269,19 +273,70 @@ export const shouldRenderLocationLabel = (face: RackFace, location: number) =>
 
 export const buildLocationLabels = (faces: RackFace[] = buildRackFaces()): LocationLabel[] =>
   faces.flatMap((face) =>
-    Array.from(
-      { length: face.endLocation - face.startLocation + 1 },
-      (_, locationOffset) => face.startLocation + locationOffset,
-    )
+    getFaceLocations(face)
       .filter((location) => shouldRenderLocationLabel(face, location))
       .map((location) => ({
         id: `${face.id}-label-${location}`,
         label: `U${padNumber(location, 3)}`,
         x: face.x,
-        y: RACK_LEVELS.length * LEVEL_HEIGHT + 0.28,
+        y: RACK_VISUAL_HEIGHT + 0.28,
         z: getLocationZ(location),
       })),
   )
+
+export const buildReferenceZones = (faces: RackFace[] = buildRackFaces()): WarehouseReferenceZone[] => {
+  const zoneAFaces = faces.filter((face) => face.zoneId === 'zone-a')
+  const minX = Math.min(...zoneAFaces.map((face) => face.x)) - RACK_DEPTH
+  const maxX = Math.max(...zoneAFaces.map((face) => face.x)) + RACK_DEPTH
+  const width = maxX - minX
+  const startZ = getLocationZ(1) - LOCATION_WIDTH / 2
+  const endZ = getLocationZ(36) + LOCATION_WIDTH / 2
+  const depth = endZ - startZ
+  const z = (startZ + endZ) / 2
+
+  return [
+    {
+      id: 'playas-mahou',
+      label: 'Playas recepcion/expedicion Mahou',
+      x: minX + width * 0.25,
+      z,
+      width: width * 0.43,
+      depth,
+    },
+    {
+      id: 'playas-red-bull',
+      label: 'Playas recepcion/expedicion Red Bull',
+      x: minX + width * 0.67,
+      z,
+      width: width * 0.31,
+      depth,
+    },
+    {
+      id: 'cross-docking',
+      label: 'Zona cross-docking',
+      x: minX + width * 0.91,
+      z,
+      width: width * 0.15,
+      depth,
+    },
+    {
+      id: 'suelo-1',
+      label: 'Almacenamiento suelo 1',
+      x: minX - 3.8,
+      z: getLocationZ(18),
+      width: 3,
+      depth: getLocationZ(36),
+    },
+    {
+      id: 'suelo-2',
+      label: 'Almacenamiento suelo 2',
+      x: minX - 0.6,
+      z: getLocationZ(18),
+      width: 3,
+      depth: getLocationZ(36),
+    },
+  ]
+}
 
 export const buildZoneSummaries = (
   faces: RackFace[] = buildRackFaces(),
@@ -289,7 +344,7 @@ export const buildZoneSummaries = (
   WAREHOUSE_ZONES.map((zone) => {
     const zoneFaces = faces.filter((face) => face.zoneId === zone.id)
     const locationsPerLevel = zoneFaces.reduce(
-      (total, face) => total + face.endLocation - face.startLocation + 1,
+      (total, face) => total + getFaceLocations(face).length,
       0,
     )
 
@@ -297,21 +352,91 @@ export const buildZoneSummaries = (
       id: zone.id,
       label: zone.label,
       aisleLabel: `P${padNumber(zone.startAisle, 2)} a P${padNumber(zone.endAisle, 2)}`,
-      locationLabel: `${padNumber(zone.startLocation, 3)} a ${padNumber(
+      locationLabel: `U${padNumber(zone.startLocation, 3)} a U${padNumber(
         zone.endLocation,
         3,
       )}`,
       faceCount: zoneFaces.length,
       locationsPerLevel,
-      locationsAllLevels: locationsPerLevel * RACK_LEVELS.length,
+      locationsAllLevels: locationsPerLevel,
     }
   })
 
 export const WAREHOUSE_AISLES = buildWarehouseAisles()
 export const WAREHOUSE_FACES = buildRackFaces(WAREHOUSE_AISLES)
+export const WAREHOUSE_BAYS = buildRackBays(WAREHOUSE_FACES)
 export const WAREHOUSE_LOCATIONS = buildRackLocations(WAREHOUSE_FACES)
-export const WAREHOUSE_PILLARS = buildRackPillars(WAREHOUSE_FACES)
-export const WAREHOUSE_BEAMS = buildRackBeams(WAREHOUSE_FACES)
 export const WAREHOUSE_AISLE_MARKERS = buildAisleMarkers(WAREHOUSE_AISLES)
 export const WAREHOUSE_LOCATION_LABELS = buildLocationLabels(WAREHOUSE_FACES)
+export const WAREHOUSE_REFERENCE_ZONES = buildReferenceZones(WAREHOUSE_FACES)
 export const WAREHOUSE_ZONE_SUMMARIES = buildZoneSummaries(WAREHOUSE_FACES)
+
+export const validateWarehouseLayout = () => {
+  const errors: string[] = []
+  const p07 = WAREHOUSE_AISLE_MARKERS.find((aisle) => aisle.aisle === 7)
+  const p26 = WAREHOUSE_AISLE_MARKERS.find((aisle) => aisle.aisle === 26)
+  const zoneAFaces = WAREHOUSE_FACES.filter((face) => face.zoneId === 'zone-a')
+  const zoneBFaces = WAREHOUSE_FACES.filter((face) => face.zoneId === 'zone-b')
+  const hasLocation = (aisle: number, side: RackSide, locationNumber: number) =>
+    WAREHOUSE_LOCATIONS.some(
+      (location) =>
+        location.aisle === aisle &&
+        location.side === side &&
+        location.location === locationNumber &&
+        location.level === 0,
+    )
+  const referenceZoneIds = new Set(['playas-mahou', 'playas-red-bull', 'cross-docking'])
+  const beachZones = WAREHOUSE_REFERENCE_ZONES.filter((zone) => referenceZoneIds.has(zone.id))
+  const zoneBMinX = Math.min(...zoneBFaces.map((face) => face.x))
+  const beachMaxX = Math.max(
+    ...beachZones.map((zone) => zone.x + zone.width / 2),
+  )
+  const beachMinZ = Math.min(
+    ...beachZones.map((zone) => zone.z - zone.depth / 2),
+  )
+  const beachMaxZ = Math.max(
+    ...beachZones.map((zone) => zone.z + zone.depth / 2),
+  )
+
+  if (!p07 || !p26 || p07.x >= p26.x) {
+    errors.push('Layout invalido: P07 debe quedar a la izquierda de P26.')
+  }
+
+  if (getLocationZ(1) >= getLocationZ(120)) {
+    errors.push('Layout invalido: U001 debe tener menor Z que U120.')
+  }
+
+  if (zoneAFaces.some((face) => face.startLocation !== 37)) {
+    errors.push('Layout invalido: Zona A debe empezar en U037.')
+  }
+
+  if (zoneBFaces.some((face) => face.startLocation !== 1)) {
+    errors.push('Layout invalido: Zona B debe empezar en U001.')
+  }
+
+  if (beachMinZ < getLocationZ(1) - LOCATION_WIDTH || beachMaxZ > getLocationZ(36) + LOCATION_WIDTH) {
+    errors.push('Layout invalido: las playas deben estar en el rango U001-U036.')
+  }
+
+  if (beachMaxX >= zoneBMinX) {
+    errors.push('Layout invalido: las playas deben quedar a la izquierda, sin invadir Zona B.')
+  }
+
+  if (!hasLocation(20, 'PAR', 1)) {
+    errors.push('Layout invalido: debe existir 20-001-00 en el lado PAR.')
+  }
+
+  if (!hasLocation(7, 'PAR', 37)) {
+    errors.push('Layout invalido: debe existir 07-037-00 en el lado PAR.')
+  }
+
+  if (hasLocation(7, 'PAR', 1)) {
+    errors.push('Layout invalido: no debe existir 07-001-00 en el lado PAR.')
+  }
+
+  errors.forEach((error) => console.error(error))
+
+  return errors
+}
+
+validateWarehouseLayout()

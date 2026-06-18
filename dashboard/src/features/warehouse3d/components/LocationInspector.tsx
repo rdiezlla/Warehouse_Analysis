@@ -24,10 +24,10 @@ export const LocationInspector = ({
   const rows = [
     ['ID', selectedLocation.id],
     ['Zona', getZoneLabel(selectedLocation.zoneId)],
-    ['Pasillo', `P${String(selectedLocation.aisle).padStart(2, '0')}`],
+    ['Pasillo', String(selectedLocation.aisle).padStart(2, '0')],
     ['Lado', selectedLocation.side],
-    ['Ubicacion', `U${String(selectedLocation.location).padStart(3, '0')}`],
-    ['Altura', String(selectedLocation.level)],
+    ['Ubicacion', String(selectedLocation.location).padStart(3, '0')],
+    ['Altura', String(selectedLocation.level).padStart(2, '0')],
     ['Vano', String(selectedLocation.bayIndex)],
     ['Posicion', `${selectedLocation.positionInsideBay} de 3`],
     ['Estado', 'Vacio'],
