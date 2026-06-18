@@ -119,17 +119,42 @@ export const buildWarehouseAisles = (): WarehouseAisleConfig[] =>
     return { aisle, faces }
   })
 
-export const getBayIndex = (startLocation: number, location: number) =>
-  Math.floor((location - startLocation) / LOCATIONS_PER_BAY) + 1
-
-export const getPositionInsideBay = (startLocation: number, location: number) =>
-  ((location - startLocation) % LOCATIONS_PER_BAY) + 1
-
-const getFaceLocations = (face: Pick<RackFaceConfig, 'startLocation' | 'endLocation'>) =>
+export const getFaceLocations = (
+  face: Pick<RackFaceConfig, 'side' | 'startLocation' | 'endLocation'>,
+) =>
   Array.from(
     { length: face.endLocation - face.startLocation + 1 },
     (_, locationOffset) => face.startLocation + locationOffset,
+  ).filter((location) =>
+    face.side === 'PAR' ? location % 2 === 0 : location % 2 !== 0,
   )
+
+const getFaceLocationIndex = (
+  face: Pick<RackFaceConfig, 'side' | 'startLocation' | 'endLocation'>,
+  location: number,
+) => getFaceLocations(face).indexOf(location)
+
+export const getBayIndexForFaceLocation = (
+  face: Pick<RackFaceConfig, 'side' | 'startLocation' | 'endLocation'>,
+  location: number,
+) => {
+  const faceLocationIndex = getFaceLocationIndex(face, location)
+
+  return faceLocationIndex < 0
+    ? -1
+    : Math.floor(faceLocationIndex / LOCATIONS_PER_BAY) + 1
+}
+
+export const getPositionInsideBayForFaceLocation = (
+  face: Pick<RackFaceConfig, 'side' | 'startLocation' | 'endLocation'>,
+  location: number,
+) => {
+  const faceLocationIndex = getFaceLocationIndex(face, location)
+
+  return faceLocationIndex < 0
+    ? -1
+    : (faceLocationIndex % LOCATIONS_PER_BAY) + 1
+}
 
 const getStreetX = (aisle: number) => (aisle - FIRST_AISLE) * AISLE_SPACING
 
@@ -140,10 +165,12 @@ export const getRackX = (aisle: number, side: RackSide) => {
   return getStreetX(aisle) + sideSign * (AISLE_WIDTH / 2 + RACK_DEPTH / 2)
 }
 
+export const getLocationPairIndex = (location: number) => Math.floor((location - 1) / 2)
+
 export const getLocationZ = (location: number) => {
-  const zeroBasedLocation = location - 1
-  const bayIndex = Math.floor(zeroBasedLocation / LOCATIONS_PER_BAY)
-  const positionInsideBay = zeroBasedLocation % LOCATIONS_PER_BAY
+  const pairIndex = getLocationPairIndex(location)
+  const bayIndex = Math.floor(pairIndex / LOCATIONS_PER_BAY)
+  const positionInsideBay = pairIndex % LOCATIONS_PER_BAY
 
   return bayIndex * (BAY_WIDTH + BAY_GAP) + positionInsideBay * (LOCATION_WIDTH + LOCATION_GAP)
 }
@@ -183,8 +210,8 @@ export const buildRackLocations = (faces: RackFace[] = buildRackFaces()): RackLo
   faces.flatMap((face) =>
     getFaceLocations(face).flatMap((location) =>
       VISIBLE_RACK_LEVELS.map((level) => {
-        const bayIndex = getBayIndex(face.startLocation, location)
-        const positionInsideBay = getPositionInsideBay(face.startLocation, location)
+        const bayIndex = getBayIndexForFaceLocation(face, location)
+        const positionInsideBay = getPositionInsideBayForFaceLocation(face, location)
         const position = getLocationPosition(face, location, level)
         const locationData = {
           bayId: formatBayId(face, bayIndex),
@@ -406,12 +433,41 @@ export const validateWarehouseLayout = () => {
     errors.push('Layout invalido: U001 debe tener menor Z que U120.')
   }
 
+  if (getLocationZ(1) !== getLocationZ(2)) {
+    errors.push('Layout invalido: U001 y U002 deben compartir posicion Z.')
+  }
+
+  if (getLocationZ(37) !== getLocationZ(38)) {
+    errors.push('Layout invalido: U037 y U038 deben compartir posicion Z.')
+  }
+
+  if (getLocationZ(119) !== getLocationZ(120)) {
+    errors.push('Layout invalido: U119 y U120 deben compartir posicion Z.')
+  }
+
   if (zoneAFaces.some((face) => face.startLocation !== 37)) {
     errors.push('Layout invalido: Zona A debe empezar en U037.')
   }
 
+  if (
+    zoneAFaces.some(
+      (face) =>
+        getFaceLocations(face)[0] !== (face.side === 'IMPAR' ? 37 : 38),
+    )
+  ) {
+    errors.push('Layout invalido: Zona A debe empezar en U037/U038 segun el lado.')
+  }
+
   if (zoneBFaces.some((face) => face.startLocation !== 1)) {
     errors.push('Layout invalido: Zona B debe empezar en U001.')
+  }
+
+  if (
+    zoneBFaces.some(
+      (face) => getFaceLocations(face)[0] !== (face.side === 'IMPAR' ? 1 : 2),
+    )
+  ) {
+    errors.push('Layout invalido: Zona B debe empezar en U001/U002 segun el lado.')
   }
 
   if (beachMinZ < getLocationZ(1) - LOCATION_WIDTH || beachMaxZ > getLocationZ(36) + LOCATION_WIDTH) {
@@ -422,16 +478,43 @@ export const validateWarehouseLayout = () => {
     errors.push('Layout invalido: las playas deben quedar a la izquierda, sin invadir Zona B.')
   }
 
-  if (!hasLocation(20, 'PAR', 1)) {
-    errors.push('Layout invalido: debe existir 20-001-00 en el lado PAR.')
+  if (hasLocation(7, 'PAR', 37)) {
+    errors.push('Layout invalido: 07-037-00 no debe existir en el lado PAR.')
   }
 
-  if (!hasLocation(7, 'PAR', 37)) {
-    errors.push('Layout invalido: debe existir 07-037-00 en el lado PAR.')
+  if (!hasLocation(7, 'PAR', 38)) {
+    errors.push('Layout invalido: debe existir 07-038-00 en el lado PAR.')
   }
 
-  if (hasLocation(7, 'PAR', 1)) {
-    errors.push('Layout invalido: no debe existir 07-001-00 en el lado PAR.')
+  if (!hasLocation(8, 'IMPAR', 37)) {
+    errors.push('Layout invalido: debe existir 08-037-00 en el lado IMPAR.')
+  }
+
+  if (!hasLocation(8, 'PAR', 38)) {
+    errors.push('Layout invalido: debe existir 08-038-00 en el lado PAR.')
+  }
+
+  if (hasLocation(8, 'IMPAR', 38)) {
+    errors.push('Layout invalido: 08-038-00 no debe existir en el lado IMPAR.')
+  }
+
+  if (hasLocation(8, 'PAR', 37)) {
+    errors.push('Layout invalido: 08-037-00 no debe existir en el lado PAR.')
+  }
+
+  if (!hasLocation(20, 'PAR', 2) || hasLocation(20, 'PAR', 1)) {
+    errors.push('Layout invalido: P20 PAR debe empezar en 20-002-00.')
+  }
+
+  const zoneACount = WAREHOUSE_LOCATIONS.filter(
+    (location) => location.zoneId === 'zone-a',
+  ).length
+  const zoneBCount = WAREHOUSE_LOCATIONS.filter(
+    (location) => location.zoneId === 'zone-b',
+  ).length
+
+  if (zoneACount !== 1092 || zoneBCount !== 720 || WAREHOUSE_LOCATIONS.length !== 1812) {
+    errors.push('Layout invalido: los totales H00 deben ser 1092 + 720 = 1812.')
   }
 
   errors.forEach((error) => console.error(error))

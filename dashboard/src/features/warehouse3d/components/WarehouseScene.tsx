@@ -1,14 +1,21 @@
-import { useEffect, useMemo } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
-import { OrbitControls, Text } from '@react-three/drei'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { Canvas, type ThreeEvent, useThree } from '@react-three/fiber'
+import { Edges, OrbitControls, Text } from '@react-three/drei'
 import * as THREE from 'three'
 
 import { RackBay3EU } from '@/features/warehouse3d/components/RackBay3EU'
 import type { RackLocation } from '@/features/warehouse3d/types'
 import {
   AISLE_WIDTH,
+  BAY_WIDTH,
+  BEAM_DEPTH,
+  BEAM_HEIGHT,
   getLocationZ,
+  LOCATION_DEPTH,
+  LOCATION_HEIGHT,
   LOCATION_WIDTH,
+  POST_HEIGHT,
+  POST_WIDTH,
   RACK_DEPTH,
   WAREHOUSE_AISLE_MARKERS,
   WAREHOUSE_BAYS,
@@ -29,6 +36,12 @@ interface WarehouseSceneProps {
 const aisleColor = '#ffffff'
 const floorColor = '#e5e7eb'
 const selectedFloorColor = '#dbeafe'
+const postColor = '#0073e6'
+const beamColor = '#ef1d16'
+const emptyLocationColor = '#e5e7eb'
+const emptyEdgeColor = '#ffffff'
+const selectedLocationColor = '#f59e0b'
+const selectedEdgeColor = '#fff7ed'
 const FULL_CAMERA_POSITION: [number, number, number] = [0, 125, -75]
 const FULL_CAMERA_ZOOM = 5.8
 
@@ -86,7 +99,7 @@ const getBounds = () => {
 }
 
 const CameraSetup = ({ debugSingleBay }: { debugSingleBay: boolean }) => {
-  const { camera } = useThree()
+  const { camera, invalidate } = useThree()
 
   useEffect(() => {
     camera.up.set(0, 1, 0)
@@ -100,7 +113,8 @@ const CameraSetup = ({ debugSingleBay }: { debugSingleBay: boolean }) => {
     }
 
     camera.updateProjectionMatrix()
-  }, [camera, debugSingleBay])
+    invalidate()
+  }, [camera, debugSingleBay, invalidate])
 
   return null
 }
@@ -209,55 +223,175 @@ const LocationReferenceLabels = () => (
   </group>
 )
 
-const RackBayCollection = ({
+const setInstanceMatrices = (
+  mesh: THREE.InstancedMesh | null,
+  matrices: THREE.Matrix4[],
+) => {
+  if (!mesh) {
+    return
+  }
+
+  matrices.forEach((matrix, index) => mesh.setMatrixAt(index, matrix))
+  mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage)
+  mesh.instanceMatrix.needsUpdate = true
+  mesh.computeBoundingSphere()
+}
+
+const InstancedRackWarehouse = memo(({
   locations,
-  selectedLocationUid,
+  selectedLocation,
   onSelectLocation,
 }: {
   locations: RackLocation[]
-  selectedLocationUid?: string | null
+  selectedLocation: RackLocation | null
   onSelectLocation: (location: RackLocation) => void
 }) => {
-  const locationsByBay = useMemo(() => {
-    const map = new Map<string, RackLocation[]>()
+  const locationMeshRef = useRef<THREE.InstancedMesh>(null)
+  const wireframeMeshRef = useRef<THREE.InstancedMesh>(null)
+  const postMeshRef = useRef<THREE.InstancedMesh>(null)
+  const beamMeshRef = useRef<THREE.InstancedMesh>(null)
+  const { invalidate } = useThree()
 
-    locations.forEach((location) => {
-      const bayLocations = map.get(location.bayId) ?? []
-      bayLocations.push(location)
-      map.set(location.bayId, bayLocations)
+  const locationMatrices = useMemo(
+    () =>
+      locations.map((location) =>
+        new THREE.Matrix4().makeTranslation(location.x, location.y, location.z),
+      ),
+    [locations],
+  )
+
+  const { postMatrices, beamMatrices } = useMemo(() => {
+    const posts: THREE.Matrix4[] = []
+    const beams: THREE.Matrix4[] = []
+    const postZOffset = BAY_WIDTH / 2 + POST_WIDTH / 2
+    const frontBackXOffset = LOCATION_DEPTH / 2 + POST_WIDTH / 2
+    const beamYTop = LOCATION_HEIGHT + 0.34
+    const beamYMid = LOCATION_HEIGHT + 0.08
+
+    WAREHOUSE_BAYS.forEach((bay) => {
+      const frontX = bay.x + bay.rackDepthSign * frontBackXOffset
+      const rearX = bay.x - bay.rackDepthSign * frontBackXOffset
+
+      for (const x of [frontX, rearX]) {
+        for (const zOffset of [-postZOffset, postZOffset]) {
+          posts.push(
+            new THREE.Matrix4().makeTranslation(
+              x,
+              POST_HEIGHT / 2,
+              bay.z + zOffset,
+            ),
+          )
+        }
+
+        for (const y of [beamYTop, beamYMid]) {
+          beams.push(new THREE.Matrix4().makeTranslation(x, y, bay.z))
+        }
+      }
     })
 
-    map.forEach((bayLocations) => {
-      bayLocations.sort((a, b) => a.location - b.location)
-    })
+    return { postMatrices: posts, beamMatrices: beams }
+  }, [])
 
-    return map
-  }, [locations])
+  useLayoutEffect(() => {
+    setInstanceMatrices(locationMeshRef.current, locationMatrices)
+    setInstanceMatrices(wireframeMeshRef.current, locationMatrices)
+    setInstanceMatrices(postMeshRef.current, postMatrices)
+    setInstanceMatrices(beamMeshRef.current, beamMatrices)
+    invalidate()
+  }, [beamMatrices, invalidate, locationMatrices, postMatrices])
+
+  const handleLocationClick = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation()
+
+    if (event.instanceId === undefined) {
+      return
+    }
+
+    const location = locations[event.instanceId]
+
+    if (location) {
+      onSelectLocation(location)
+    }
+  }
 
   return (
     <group>
-      {WAREHOUSE_BAYS.map((bay) => {
-        const bayLocations = locationsByBay.get(bay.id)
+      <instancedMesh
+        ref={locationMeshRef}
+        args={[undefined, undefined, locations.length]}
+        onClick={handleLocationClick}
+      >
+        <boxGeometry args={[LOCATION_DEPTH, LOCATION_HEIGHT, LOCATION_WIDTH]} />
+        <meshStandardMaterial
+          color={emptyLocationColor}
+          roughness={0.55}
+          metalness={0.02}
+          transparent
+          opacity={0.38}
+          depthWrite={false}
+        />
+      </instancedMesh>
 
-        if (!bayLocations?.length) {
-          return null
-        }
+      <instancedMesh
+        ref={wireframeMeshRef}
+        args={[undefined, undefined, locations.length]}
+        raycast={() => null}
+      >
+        <boxGeometry
+          args={[
+            LOCATION_DEPTH * 1.002,
+            LOCATION_HEIGHT * 1.002,
+            LOCATION_WIDTH * 1.002,
+          ]}
+        />
+        <meshBasicMaterial
+          color={emptyEdgeColor}
+          wireframe
+          transparent
+          opacity={0.5}
+          depthWrite={false}
+        />
+      </instancedMesh>
 
-        return (
-          <RackBay3EU
-            key={bay.id}
-            bayId={bay.id}
-            locations={bayLocations}
-            position={[bay.x, 0, bay.z]}
-            rackDepthSign={bay.rackDepthSign}
-            selectedLocationUid={selectedLocationUid}
-            onSelectLocation={onSelectLocation}
+      <instancedMesh
+        ref={postMeshRef}
+        args={[undefined, undefined, postMatrices.length]}
+        raycast={() => null}
+      >
+        <boxGeometry args={[POST_WIDTH, POST_HEIGHT, POST_WIDTH]} />
+        <meshStandardMaterial color={postColor} roughness={0.38} metalness={0.25} />
+      </instancedMesh>
+
+      <instancedMesh
+        ref={beamMeshRef}
+        args={[undefined, undefined, beamMatrices.length]}
+        raycast={() => null}
+      >
+        <boxGeometry args={[BEAM_DEPTH, BEAM_HEIGHT, BAY_WIDTH + POST_WIDTH]} />
+        <meshStandardMaterial color={beamColor} roughness={0.34} metalness={0.18} />
+      </instancedMesh>
+
+      {selectedLocation && (
+        <mesh
+          position={[selectedLocation.x, selectedLocation.y, selectedLocation.z]}
+          raycast={() => null}
+        >
+          <boxGeometry args={[LOCATION_DEPTH, LOCATION_HEIGHT, LOCATION_WIDTH]} />
+          <meshStandardMaterial
+            color={selectedLocationColor}
+            roughness={0.55}
+            metalness={0.02}
+            transparent
+            opacity={0.86}
           />
-        )
-      })}
+          <Edges scale={1.002} threshold={12} color={selectedEdgeColor} />
+        </mesh>
+      )}
     </group>
   )
-}
+})
+
+InstancedRackWarehouse.displayName = 'InstancedRackWarehouse'
 
 const DebugSingleBay = ({
   selectedLocationUid,
@@ -267,15 +401,11 @@ const DebugSingleBay = ({
   onSelectLocation: (location: RackLocation) => void
 }) => {
   const locations = WAREHOUSE_LOCATIONS.filter(
-    (location) =>
-      location.aisle === 20 &&
-      location.side === 'PAR' &&
-      location.location >= 1 &&
-      location.location <= 3,
-  ).map((location) => ({
+    (location) => location.aisle === 20 && location.side === 'PAR',
+  ).slice(0, 3).map((location) => ({
     ...location,
     x: 0,
-    z: location.z - getLocationZ(2),
+    z: location.z - getLocationZ(4),
   }))
 
   return (
@@ -317,6 +447,8 @@ export const WarehouseScene = ({
 
   return (
     <Canvas
+      frameloop="demand"
+      dpr={[1, 1.5]}
       orthographic
       camera={{
         position: debugSingleBay ? [4, 3, 5] : FULL_CAMERA_POSITION,
@@ -324,7 +456,7 @@ export const WarehouseScene = ({
         near: 0.1,
         far: 1000,
       }}
-      gl={{ antialias: true, preserveDrawingBuffer: true }}
+      gl={{ antialias: true }}
       onCreated={({ camera }) => {
         camera.up.set(0, 1, 0)
         camera.lookAt(debugSingleBay ? new THREE.Vector3(0, 0.9, 0) : new THREE.Vector3(0, 0, 0))
@@ -356,9 +488,9 @@ export const WarehouseScene = ({
           <ZoneFootprints />
           {showReferenceZones && <ReferenceZonePlates />}
 
-          <RackBayCollection
+          <InstancedRackWarehouse
             locations={locations}
-            selectedLocationUid={selectedLocation?.uid}
+            selectedLocation={selectedLocation}
             onSelectLocation={onSelectLocation}
           />
 
@@ -375,13 +507,13 @@ export const WarehouseScene = ({
         enableDamping
         dampingFactor={0.08}
         rotateSpeed={0.62}
-        zoomSpeed={0.8}
+        zoomSpeed={1.1}
         panSpeed={0.7}
         screenSpacePanning={false}
         minPolarAngle={0.22}
         maxPolarAngle={1.32}
         minZoom={debugSingleBay ? 35 : 2.5}
-        maxZoom={debugSingleBay ? 140 : 12}
+        maxZoom={debugSingleBay ? 140 : 60}
         mouseButtons={{
           LEFT: THREE.MOUSE.ROTATE,
           MIDDLE: THREE.MOUSE.DOLLY,
