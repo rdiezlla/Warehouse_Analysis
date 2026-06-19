@@ -17,6 +17,15 @@ export const RACK_LEVELS = [0, 10, 20, 30, 40] as const satisfies RackLevel[]
 export const VISIBLE_RACK_LEVELS: readonly RackLevel[] = [0]
 
 export const LOCATIONS_PER_BAY = 3
+export const EXCLUDED_LOCATION_RANGES = [
+  { start: 55, end: 60 },
+  { start: 115, end: 120 },
+] as const
+
+export const isLocationExcluded = (location: number) =>
+  EXCLUDED_LOCATION_RANGES.some(
+    ({ start, end }) => location >= start && location <= end,
+  )
 
 export const LOCATION_WIDTH = 0.85
 export const LOCATION_DEPTH = 0.95
@@ -119,26 +128,57 @@ export const buildWarehouseAisles = (): WarehouseAisleConfig[] =>
     return { aisle, faces }
   })
 
+export const getLocationPairIndex = (location: number) => Math.floor((location - 1) / 2)
+
 export const getFaceLocations = (
   face: Pick<RackFaceConfig, 'side' | 'startLocation' | 'endLocation'>,
 ) =>
   Array.from(
     { length: face.endLocation - face.startLocation + 1 },
     (_, locationOffset) => face.startLocation + locationOffset,
-  ).filter((location) =>
-    face.side === 'PAR' ? location % 2 === 0 : location % 2 !== 0,
-  )
+  ).filter((location) => {
+    const matchesSide = face.side === 'PAR' ? location % 2 === 0 : location % 2 !== 0
 
-const getFaceLocationIndex = (
+    return matchesSide && !isLocationExcluded(location)
+  })
+
+const getFirstPhysicalFaceLocation = (
+  face: Pick<RackFaceConfig, 'side' | 'startLocation' | 'endLocation'>,
+) => {
+  const startMatchesSide =
+    face.side === 'PAR'
+      ? face.startLocation % 2 === 0
+      : face.startLocation % 2 !== 0
+
+  return startMatchesSide ? face.startLocation : face.startLocation + 1
+}
+
+const getPhysicalFaceLocationIndex = (
   face: Pick<RackFaceConfig, 'side' | 'startLocation' | 'endLocation'>,
   location: number,
-) => getFaceLocations(face).indexOf(location)
+) => {
+  const matchesSide = face.side === 'PAR' ? location % 2 === 0 : location % 2 !== 0
+
+  if (
+    !matchesSide ||
+    isLocationExcluded(location) ||
+    location < face.startLocation ||
+    location > face.endLocation
+  ) {
+    return -1
+  }
+
+  return (
+    getLocationPairIndex(location) -
+    getLocationPairIndex(getFirstPhysicalFaceLocation(face))
+  )
+}
 
 export const getBayIndexForFaceLocation = (
   face: Pick<RackFaceConfig, 'side' | 'startLocation' | 'endLocation'>,
   location: number,
 ) => {
-  const faceLocationIndex = getFaceLocationIndex(face, location)
+  const faceLocationIndex = getPhysicalFaceLocationIndex(face, location)
 
   return faceLocationIndex < 0
     ? -1
@@ -149,7 +189,7 @@ export const getPositionInsideBayForFaceLocation = (
   face: Pick<RackFaceConfig, 'side' | 'startLocation' | 'endLocation'>,
   location: number,
 ) => {
-  const faceLocationIndex = getFaceLocationIndex(face, location)
+  const faceLocationIndex = getPhysicalFaceLocationIndex(face, location)
 
   return faceLocationIndex < 0
     ? -1
@@ -164,8 +204,6 @@ export const getRackX = (aisle: number, side: RackSide) => {
   const sideSign = side === 'IMPAR' ? -1 : 1
   return getStreetX(aisle) + sideSign * (AISLE_WIDTH / 2 + RACK_DEPTH / 2)
 }
-
-export const getLocationPairIndex = (location: number) => Math.floor((location - 1) / 2)
 
 export const getLocationZ = (location: number) => {
   const pairIndex = getLocationPairIndex(location)
@@ -238,25 +276,26 @@ export const buildRackLocations = (faces: RackFace[] = buildRackFaces()): RackLo
   )
 
 const getBayRanges = (face: RackFace) => {
-  const ranges: Array<{ startLocation: number; endLocation: number }> = []
-  const locations = getFaceLocations(face)
+  const locationsByBay = new Map<number, number[]>()
 
-  for (let index = 0; index < locations.length; index += LOCATIONS_PER_BAY) {
-    const bayLocations = locations.slice(index, index + LOCATIONS_PER_BAY)
+  getFaceLocations(face).forEach((location) => {
+    const bayIndex = getBayIndexForFaceLocation(face, location)
+    const bayLocations = locationsByBay.get(bayIndex) ?? []
+    bayLocations.push(location)
+    locationsByBay.set(bayIndex, bayLocations)
+  })
 
-    ranges.push({
-      startLocation: bayLocations[0],
-      endLocation: bayLocations[bayLocations.length - 1],
-    })
-  }
-
-  return ranges
+  return Array.from(locationsByBay.entries()).map(([bayIndex, locations]) => ({
+    bayIndex,
+    startLocation: locations[0],
+    endLocation: locations[locations.length - 1],
+  }))
 }
 
 export const buildRackBays = (faces: RackFace[] = buildRackFaces()): RackBay[] =>
   faces.flatMap((face) =>
-    getBayRanges(face).map((bay, index) => {
-      const bayIndex = index + 1
+    getBayRanges(face).map((bay) => {
+      const bayIndex = bay.bayIndex
       const zStart = getLocationZ(bay.startLocation) - LOCATION_WIDTH / 2
       const zEnd = getLocationZ(bay.endLocation) + LOCATION_WIDTH / 2
 
@@ -506,6 +545,56 @@ export const validateWarehouseLayout = () => {
     errors.push('Layout invalido: P20 PAR debe empezar en 20-002-00.')
   }
 
+  if (WAREHOUSE_LOCATIONS.some(({ location }) => isLocationExcluded(location))) {
+    errors.push('Layout invalido: existen ubicaciones dentro de los rangos excluidos.')
+  }
+
+  if (
+    WAREHOUSE_LOCATIONS.some(({ location, side }) =>
+      side === 'PAR' ? location % 2 !== 0 : location % 2 === 0,
+    )
+  ) {
+    errors.push('Layout invalido: la paridad de alguna ubicacion no coincide con su lado.')
+  }
+
+  const requiredLocations: Array<[number, RackSide, number]> = [
+    [8, 'IMPAR', 53],
+    [8, 'PAR', 54],
+    [8, 'IMPAR', 61],
+    [8, 'PAR', 62],
+    [8, 'IMPAR', 113],
+    [8, 'PAR', 114],
+  ]
+  const forbiddenLocations: Array<[number, RackSide, number]> = [
+    [8, 'IMPAR', 55],
+    [8, 'PAR', 56],
+    [8, 'IMPAR', 115],
+    [8, 'PAR', 116],
+  ]
+
+  if (requiredLocations.some(([aisle, side, location]) => !hasLocation(aisle, side, location))) {
+    errors.push('Layout invalido: faltan ubicaciones limite junto a los huecos transversales.')
+  }
+
+  if (forbiddenLocations.some(([aisle, side, location]) => hasLocation(aisle, side, location))) {
+    errors.push('Layout invalido: existen ubicaciones dentro de un pasillo transversal.')
+  }
+
+  const normalLocationStep = getLocationZ(53) - getLocationZ(51)
+  const transverseGap = getLocationZ(61) - getLocationZ(53)
+
+  if (getLocationZ(53) >= getLocationZ(61) || transverseGap <= normalLocationStep * 3) {
+    errors.push('Layout invalido: no se conserva el hueco fisico entre U053/U054 y U061/U062.')
+  }
+
+  if (
+    WAREHOUSE_BAYS.some(
+      (bay) => isLocationExcluded(bay.startLocation) || isLocationExcluded(bay.endLocation),
+    )
+  ) {
+    errors.push('Layout invalido: se ha generado estructura de rack en un vano excluido.')
+  }
+
   const zoneACount = WAREHOUSE_LOCATIONS.filter(
     (location) => location.zoneId === 'zone-a',
   ).length
@@ -513,8 +602,8 @@ export const validateWarehouseLayout = () => {
     (location) => location.zoneId === 'zone-b',
   ).length
 
-  if (zoneACount !== 1092 || zoneBCount !== 720 || WAREHOUSE_LOCATIONS.length !== 1812) {
-    errors.push('Layout invalido: los totales H00 deben ser 1092 + 720 = 1812.')
+  if (zoneACount !== 936 || zoneBCount !== 648 || WAREHOUSE_LOCATIONS.length !== 1584) {
+    errors.push('Layout invalido: los totales H00 deben ser 936 + 648 = 1584.')
   }
 
   errors.forEach((error) => console.error(error))
