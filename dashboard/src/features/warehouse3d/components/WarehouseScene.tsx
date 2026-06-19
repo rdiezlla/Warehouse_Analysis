@@ -4,12 +4,16 @@ import { Edges, OrbitControls, Text } from '@react-three/drei'
 import * as THREE from 'three'
 
 import { RackBay3EU } from '@/features/warehouse3d/components/RackBay3EU'
-import type { RackLocation } from '@/features/warehouse3d/types'
+import type {
+  RackBayTypeOverrides,
+  RackLocation,
+} from '@/features/warehouse3d/types'
 import {
   AISLE_WIDTH,
   BAY_WIDTH,
   BEAM_DEPTH,
   BEAM_HEIGHT,
+  getBayType,
   getLocationZ,
   LOCATION_DEPTH,
   LOCATION_HEIGHT,
@@ -17,6 +21,8 @@ import {
   POST_HEIGHT,
   POST_WIDTH,
   RACK_DEPTH,
+  SPLIT_LOCATION_HEIGHT,
+  SPLIT_MIDDLE_BEAM_Y,
   WAREHOUSE_AISLE_MARKERS,
   WAREHOUSE_BAYS,
   WAREHOUSE_FACES,
@@ -30,7 +36,10 @@ interface WarehouseSceneProps {
   selectedLocation: RackLocation | null
   showLabels: boolean
   showReferenceZones: boolean
+  rackBayTypeOverrides: RackBayTypeOverrides
+  editRackTypes: boolean
   onSelectLocation: (location: RackLocation) => void
+  onEditRackBay: (bayId: string) => void
 }
 
 const aisleColor = '#ffffff'
@@ -237,28 +246,135 @@ const setInstanceMatrices = (
   mesh.computeBoundingSphere()
 }
 
-const InstancedRackWarehouse = memo(({
+const InstancedLocationLayer = memo(({
   locations,
-  selectedLocation,
-  onSelectLocation,
+  height,
+  onLocationClick,
 }: {
   locations: RackLocation[]
-  selectedLocation: RackLocation | null
-  onSelectLocation: (location: RackLocation) => void
+  height: number
+  onLocationClick: (location: RackLocation) => void
 }) => {
   const locationMeshRef = useRef<THREE.InstancedMesh>(null)
   const wireframeMeshRef = useRef<THREE.InstancedMesh>(null)
-  const postMeshRef = useRef<THREE.InstancedMesh>(null)
-  const beamMeshRef = useRef<THREE.InstancedMesh>(null)
   const { invalidate } = useThree()
-
-  const locationMatrices = useMemo(
+  const matrices = useMemo(
     () =>
       locations.map((location) =>
         new THREE.Matrix4().makeTranslation(location.x, location.y, location.z),
       ),
     [locations],
   )
+
+  useLayoutEffect(() => {
+    setInstanceMatrices(locationMeshRef.current, matrices)
+    setInstanceMatrices(wireframeMeshRef.current, matrices)
+    invalidate()
+  }, [invalidate, matrices])
+
+  const handleClick = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation()
+
+    if (event.instanceId === undefined) {
+      return
+    }
+
+    const location = locations[event.instanceId]
+
+    if (location) {
+      onLocationClick(location)
+    }
+  }
+
+  if (locations.length === 0) {
+    return null
+  }
+
+  return (
+    <group>
+      <instancedMesh
+        ref={locationMeshRef}
+        args={[undefined, undefined, locations.length]}
+        onClick={handleClick}
+      >
+        <boxGeometry args={[LOCATION_DEPTH, height, LOCATION_WIDTH]} />
+        <meshStandardMaterial
+          color={emptyLocationColor}
+          roughness={0.55}
+          metalness={0.02}
+          transparent
+          opacity={0.38}
+          depthWrite={false}
+        />
+      </instancedMesh>
+
+      <instancedMesh
+        ref={wireframeMeshRef}
+        args={[undefined, undefined, locations.length]}
+        raycast={() => null}
+      >
+        <boxGeometry
+          args={[
+            LOCATION_DEPTH * 1.002,
+            height * 1.002,
+            LOCATION_WIDTH * 1.002,
+          ]}
+        />
+        <meshBasicMaterial
+          color={emptyEdgeColor}
+          wireframe
+          transparent
+          opacity={0.5}
+          depthWrite={false}
+        />
+      </instancedMesh>
+    </group>
+  )
+})
+
+InstancedLocationLayer.displayName = 'InstancedLocationLayer'
+
+const InstancedRackWarehouse = memo(({
+  locations,
+  selectedLocation,
+  rackBayTypeOverrides,
+  editRackTypes,
+  onSelectLocation,
+  onEditRackBay,
+}: {
+  locations: RackLocation[]
+  selectedLocation: RackLocation | null
+  rackBayTypeOverrides: RackBayTypeOverrides
+  editRackTypes: boolean
+  onSelectLocation: (location: RackLocation) => void
+  onEditRackBay: (bayId: string) => void
+}) => {
+  const postMeshRef = useRef<THREE.InstancedMesh>(null)
+  const beamMeshRef = useRef<THREE.InstancedMesh>(null)
+  const middleBeamMeshRef = useRef<THREE.InstancedMesh>(null)
+  const { invalidate } = useThree()
+
+  const { standardLocations, splitBottomLocations, splitTopLocations } = useMemo(() => {
+    const standard: RackLocation[] = []
+    const splitBottom: RackLocation[] = []
+    const splitTop: RackLocation[] = []
+
+    locations.forEach((location) => {
+      if (getBayType(location.bayId, rackBayTypeOverrides) === 'standard-3eu') {
+        standard.push(location)
+      } else if (location.level === 0) {
+        splitBottom.push(location)
+      } else {
+        splitTop.push(location)
+      }
+    })
+
+    return {
+      standardLocations: standard,
+      splitBottomLocations: splitBottom,
+      splitTopLocations: splitTop,
+    }
+  }, [locations, rackBayTypeOverrides])
 
   const { postMatrices, beamMatrices } = useMemo(() => {
     const posts: THREE.Matrix4[] = []
@@ -292,66 +408,65 @@ const InstancedRackWarehouse = memo(({
     return { postMatrices: posts, beamMatrices: beams }
   }, [])
 
+  const middleBeamMatrices = useMemo(() => {
+    const matrices: THREE.Matrix4[] = []
+    const frontBackXOffset = LOCATION_DEPTH / 2 + POST_WIDTH / 2
+
+    WAREHOUSE_BAYS.forEach((bay) => {
+      if (getBayType(bay.id, rackBayTypeOverrides) !== 'split-6eu') {
+        return
+      }
+
+      const frontX = bay.x + bay.rackDepthSign * frontBackXOffset
+      const rearX = bay.x - bay.rackDepthSign * frontBackXOffset
+
+      matrices.push(
+        new THREE.Matrix4().makeTranslation(frontX, SPLIT_MIDDLE_BEAM_Y, bay.z),
+        new THREE.Matrix4().makeTranslation(rearX, SPLIT_MIDDLE_BEAM_Y, bay.z),
+      )
+    })
+
+    return matrices
+  }, [rackBayTypeOverrides])
+
   useLayoutEffect(() => {
-    setInstanceMatrices(locationMeshRef.current, locationMatrices)
-    setInstanceMatrices(wireframeMeshRef.current, locationMatrices)
     setInstanceMatrices(postMeshRef.current, postMatrices)
     setInstanceMatrices(beamMeshRef.current, beamMatrices)
+    setInstanceMatrices(middleBeamMeshRef.current, middleBeamMatrices)
     invalidate()
-  }, [beamMatrices, invalidate, locationMatrices, postMatrices])
+  }, [beamMatrices, invalidate, middleBeamMatrices, postMatrices])
 
-  const handleLocationClick = (event: ThreeEvent<MouseEvent>) => {
-    event.stopPropagation()
-
-    if (event.instanceId === undefined) {
-      return
-    }
-
-    const location = locations[event.instanceId]
-
-    if (location) {
+  const handleLocationClick = (location: RackLocation) => {
+    if (editRackTypes) {
+      onEditRackBay(location.bayId)
+    } else {
       onSelectLocation(location)
     }
   }
 
+  const selectedLocationHeight =
+    selectedLocation &&
+    getBayType(selectedLocation.bayId, rackBayTypeOverrides) === 'split-6eu'
+      ? SPLIT_LOCATION_HEIGHT
+      : LOCATION_HEIGHT
+
   return (
     <group>
-      <instancedMesh
-        ref={locationMeshRef}
-        args={[undefined, undefined, locations.length]}
-        onClick={handleLocationClick}
-      >
-        <boxGeometry args={[LOCATION_DEPTH, LOCATION_HEIGHT, LOCATION_WIDTH]} />
-        <meshStandardMaterial
-          color={emptyLocationColor}
-          roughness={0.55}
-          metalness={0.02}
-          transparent
-          opacity={0.38}
-          depthWrite={false}
-        />
-      </instancedMesh>
-
-      <instancedMesh
-        ref={wireframeMeshRef}
-        args={[undefined, undefined, locations.length]}
-        raycast={() => null}
-      >
-        <boxGeometry
-          args={[
-            LOCATION_DEPTH * 1.002,
-            LOCATION_HEIGHT * 1.002,
-            LOCATION_WIDTH * 1.002,
-          ]}
-        />
-        <meshBasicMaterial
-          color={emptyEdgeColor}
-          wireframe
-          transparent
-          opacity={0.5}
-          depthWrite={false}
-        />
-      </instancedMesh>
+      <InstancedLocationLayer
+        locations={standardLocations}
+        height={LOCATION_HEIGHT}
+        onLocationClick={handleLocationClick}
+      />
+      <InstancedLocationLayer
+        locations={splitBottomLocations}
+        height={SPLIT_LOCATION_HEIGHT}
+        onLocationClick={handleLocationClick}
+      />
+      <InstancedLocationLayer
+        locations={splitTopLocations}
+        height={SPLIT_LOCATION_HEIGHT}
+        onLocationClick={handleLocationClick}
+      />
 
       <instancedMesh
         ref={postMeshRef}
@@ -371,12 +486,25 @@ const InstancedRackWarehouse = memo(({
         <meshStandardMaterial color={beamColor} roughness={0.34} metalness={0.18} />
       </instancedMesh>
 
+      {middleBeamMatrices.length > 0 && (
+        <instancedMesh
+          ref={middleBeamMeshRef}
+          args={[undefined, undefined, middleBeamMatrices.length]}
+          raycast={() => null}
+        >
+          <boxGeometry args={[BEAM_DEPTH, BEAM_HEIGHT, BAY_WIDTH + POST_WIDTH]} />
+          <meshStandardMaterial color={beamColor} roughness={0.34} metalness={0.18} />
+        </instancedMesh>
+      )}
+
       {selectedLocation && (
         <mesh
           position={[selectedLocation.x, selectedLocation.y, selectedLocation.z]}
           raycast={() => null}
         >
-          <boxGeometry args={[LOCATION_DEPTH, LOCATION_HEIGHT, LOCATION_WIDTH]} />
+          <boxGeometry
+            args={[LOCATION_DEPTH, selectedLocationHeight, LOCATION_WIDTH]}
+          />
           <meshStandardMaterial
             color={selectedLocationColor}
             roughness={0.55}
@@ -431,7 +559,10 @@ export const WarehouseScene = ({
   selectedLocation,
   showLabels,
   showReferenceZones,
+  rackBayTypeOverrides,
+  editRackTypes,
   onSelectLocation,
+  onEditRackBay,
 }: WarehouseSceneProps) => {
   const debugSingleBay = useMemo(
     () =>
@@ -457,6 +588,7 @@ export const WarehouseScene = ({
         far: 1000,
       }}
       gl={{ antialias: true }}
+      style={{ cursor: editRackTypes ? 'pointer' : undefined }}
       onCreated={({ camera }) => {
         camera.up.set(0, 1, 0)
         camera.lookAt(debugSingleBay ? new THREE.Vector3(0, 0.9, 0) : new THREE.Vector3(0, 0, 0))
@@ -491,7 +623,10 @@ export const WarehouseScene = ({
           <InstancedRackWarehouse
             locations={locations}
             selectedLocation={selectedLocation}
+            rackBayTypeOverrides={rackBayTypeOverrides}
+            editRackTypes={editRackTypes}
             onSelectLocation={onSelectLocation}
+            onEditRackBay={onEditRackBay}
           />
 
           {showLabels && <LocationReferenceLabels />}

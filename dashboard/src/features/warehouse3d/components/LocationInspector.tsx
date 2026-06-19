@@ -1,8 +1,9 @@
-import type { RackLocation } from '@/features/warehouse3d/types'
+import type { RackBayType, RackLocation } from '@/features/warehouse3d/types'
 import { WAREHOUSE_ZONES } from '@/features/warehouse3d/layout/warehouseLayout'
 
 interface LocationInspectorProps {
   selectedLocation: RackLocation | null
+  selectedRackType: RackBayType | null
   onClearSelection: () => void
 }
 
@@ -11,6 +12,7 @@ const getZoneLabel = (zoneId: string) =>
 
 export const LocationInspector = ({
   selectedLocation,
+  selectedRackType,
   onClearSelection,
 }: LocationInspectorProps) => {
   if (!selectedLocation) {
@@ -27,9 +29,10 @@ export const LocationInspector = ({
     ['Pasillo', String(selectedLocation.aisle).padStart(2, '0')],
     ['Lado', selectedLocation.side],
     ['Ubicacion', String(selectedLocation.location).padStart(3, '0')],
-    ['Altura', String(selectedLocation.level).padStart(2, '0')],
+    ['Nivel', String(selectedLocation.level).padStart(2, '0')],
     ['Vano', String(selectedLocation.bayIndex)],
     ['Posicion', `${selectedLocation.positionInsideBay} de 3`],
+    ['Tipo de rack', selectedRackType === 'split-6eu' ? 'Rack 6 EU' : 'Rack 3 EU'],
     ['Estado', 'Vacio'],
   ]
 

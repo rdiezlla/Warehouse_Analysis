@@ -5,28 +5,72 @@ import { LocationInspector } from '@/features/warehouse3d/components/LocationIns
 import { WarehouseControls } from '@/features/warehouse3d/components/WarehouseControls'
 import { WarehouseLegend } from '@/features/warehouse3d/components/WarehouseLegend'
 import { WarehouseScene } from '@/features/warehouse3d/components/WarehouseScene'
+import { useRackBayTypeOverrides } from '@/features/warehouse3d/hooks/useRackBayTypeOverrides'
 import {
+  buildRenderableRackSlots,
+  getBayType,
+  WAREHOUSE_BAYS,
   WAREHOUSE_LOCATIONS,
   WAREHOUSE_ZONE_SUMMARIES,
 } from '@/features/warehouse3d/layout/warehouseLayout'
-import type { RackLocation } from '@/features/warehouse3d/types'
+import type { RackBayType, RackLocation } from '@/features/warehouse3d/types'
 
 export const Warehouse3DModule = () => {
   const [showLabels, setShowLabels] = useState(true)
   const [showReferenceZones, setShowReferenceZones] = useState(true)
+  const [editRackTypes, setEditRackTypes] = useState(false)
+  const [rackTypeToApply, setRackTypeToApply] =
+    useState<RackBayType>('split-6eu')
   const [selectedLocation, setSelectedLocation] = useState<RackLocation | null>(null)
+  const { overrides, setBayType, resetBayTypes } = useRackBayTypeOverrides()
+
+  const renderableLocations = useMemo(
+    () => buildRenderableRackSlots(WAREHOUSE_LOCATIONS, overrides),
+    [overrides],
+  )
 
   const stats = useMemo(() => {
-    const selectableLocations = WAREHOUSE_ZONE_SUMMARIES.reduce(
-      (total, zone) => total + zone.locationsPerLevel,
-      0,
+    const splitBays = WAREHOUSE_BAYS.filter(
+      (bay) => getBayType(bay.id, overrides) === 'split-6eu',
     )
+    const zoneSummaries = WAREHOUSE_ZONE_SUMMARIES.map((zone) => {
+      const splitBayCount = splitBays.filter((bay) => bay.zoneId === zone.id).length
+
+      return {
+        ...zone,
+        selectableLocations: zone.locationsPerLevel + splitBayCount * 3,
+      }
+    })
 
     return {
-      selectableLocations,
-      zoneSummaries: WAREHOUSE_ZONE_SUMMARIES,
+      selectableLocations: renderableLocations.length,
+      standardBayCount: WAREHOUSE_BAYS.length - splitBays.length,
+      splitBayCount: splitBays.length,
+      zoneSummaries,
     }
-  }, [])
+  }, [overrides, renderableLocations.length])
+
+  const selectedRackType = selectedLocation
+    ? getBayType(selectedLocation.bayId, overrides)
+    : null
+
+  const handleEditRackTypesChange = (enabled: boolean) => {
+    setEditRackTypes(enabled)
+
+    if (enabled) {
+      setSelectedLocation(null)
+    }
+  }
+
+  const handleEditRackBay = (bayId: string) => {
+    setBayType(bayId, rackTypeToApply)
+    setSelectedLocation(null)
+  }
+
+  const handleResetRackTypes = () => {
+    resetBayTypes()
+    setSelectedLocation(null)
+  }
 
   const getOperationalRange = (zoneId: string) =>
     zoneId === 'zone-a' ? 'P07 PAR a P20 IMPAR' : 'P20 PAR a P26 IMPAR'
@@ -57,17 +101,20 @@ export const Warehouse3DModule = () => {
               </p>
             </div>
             <div className="text-right text-xs font-medium text-slate-500">
-              {stats.selectableLocations} ubicaciones seleccionables en H00
+              {stats.selectableLocations} ubicaciones seleccionables
             </div>
           </div>
 
           <div className="h-[min(72vh,700px)] min-h-[520px]">
             <WarehouseScene
-              locations={WAREHOUSE_LOCATIONS}
+              locations={renderableLocations}
               selectedLocation={selectedLocation}
               showLabels={showLabels}
               showReferenceZones={showReferenceZones}
+              rackBayTypeOverrides={overrides}
+              editRackTypes={editRackTypes}
               onSelectLocation={setSelectedLocation}
+              onEditRackBay={handleEditRackBay}
             />
           </div>
         </Panel>
@@ -78,8 +125,14 @@ export const Warehouse3DModule = () => {
             <WarehouseControls
               showLabels={showLabels}
               showReferenceZones={showReferenceZones}
+              editRackTypes={editRackTypes}
+              selectedRackType={rackTypeToApply}
+              hasRackTypeOverrides={stats.splitBayCount > 0}
               onShowLabelsChange={setShowLabels}
               onShowReferenceZonesChange={setShowReferenceZones}
+              onEditRackTypesChange={handleEditRackTypesChange}
+              onSelectedRackTypeChange={setRackTypeToApply}
+              onResetRackTypes={handleResetRackTypes}
             />
           </Panel>
 
@@ -87,6 +140,7 @@ export const Warehouse3DModule = () => {
             <h2 className="mb-4 text-base font-semibold text-slate-900">Inspector</h2>
             <LocationInspector
               selectedLocation={selectedLocation}
+              selectedRackType={selectedRackType}
               onClearSelection={() => setSelectedLocation(null)}
             />
           </Panel>
@@ -103,12 +157,20 @@ export const Warehouse3DModule = () => {
                 <p key={zone.id}>
                   <span className="font-semibold text-slate-800">{zone.label}:</span>{' '}
                   {getOperationalRange(zone.id)}, ubicaciones {zone.locationLabel},{' '}
-                  {zone.faceCount} caras, {zone.locationsPerLevel} ubicaciones seleccionables en H00.
+                  {zone.faceCount} caras, {zone.selectableLocations} ubicaciones seleccionables.
                 </p>
               ))}
               <p>
+                <span className="font-semibold text-slate-800">Bays estándar:</span>{' '}
+                {stats.standardBayCount}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Bays Rack 6 EU:</span>{' '}
+                {stats.splitBayCount}
+              </p>
+              <p>
                 <span className="font-semibold text-slate-800">Total:</span>{' '}
-                {stats.selectableLocations} ubicaciones seleccionables en altura 0.
+                {stats.selectableLocations} ubicaciones seleccionables.
               </p>
             </div>
           </Panel>

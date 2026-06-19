@@ -2,6 +2,8 @@ import type {
   AisleMarker,
   LocationLabel,
   RackBay,
+  RackBayType,
+  RackBayTypeOverrides,
   RackFace,
   RackFaceConfig,
   RackLevel,
@@ -37,6 +39,10 @@ export const POST_WIDTH = 0.12
 export const POST_HEIGHT = 1.75
 export const BEAM_HEIGHT = 0.12
 export const BEAM_DEPTH = 0.14
+export const SPLIT_LOCATION_HEIGHT = (LOCATION_HEIGHT - BEAM_HEIGHT) / 2
+export const SPLIT_BOTTOM_LOCATION_Y = SPLIT_LOCATION_HEIGHT / 2
+export const SPLIT_TOP_LOCATION_Y = LOCATION_HEIGHT - SPLIT_LOCATION_HEIGHT / 2
+export const SPLIT_MIDDLE_BEAM_Y = LOCATION_HEIGHT / 2
 export const RACK_DEPTH = LOCATION_DEPTH + POST_WIDTH * 2
 export const RACK_VISUAL_HEIGHT = POST_HEIGHT
 export const AISLE_WIDTH = 2.4
@@ -274,6 +280,41 @@ export const buildRackLocations = (faces: RackFace[] = buildRackFaces()): RackLo
       }),
     ),
   )
+
+export const getBayType = (
+  bayId: string,
+  overrides: RackBayTypeOverrides,
+): RackBayType => overrides[bayId] ?? 'standard-3eu'
+
+export const buildRenderableRackSlots = (
+  baseLocations: RackLocation[],
+  overrides: RackBayTypeOverrides,
+): RackLocation[] =>
+  baseLocations.flatMap((location) => {
+    if (getBayType(location.bayId, overrides) === 'standard-3eu') {
+      return location
+    }
+
+    const bottomLocation: RackLocation = {
+      ...location,
+      y: SPLIT_BOTTOM_LOCATION_Y,
+    }
+    const topLocationData: RackLocation = {
+      ...location,
+      level: 1,
+      y: SPLIT_TOP_LOCATION_Y,
+      id: formatLocationId({
+        aisle: location.aisle,
+        location: location.location,
+        level: 1,
+      }),
+      uid: '',
+    }
+
+    topLocationData.uid = `${topLocationData.faceId}-${topLocationData.id}`
+
+    return [bottomLocation, topLocationData]
+  })
 
 const getBayRanges = (face: RackFace) => {
   const locationsByBay = new Map<number, number[]>()
@@ -604,6 +645,40 @@ export const validateWarehouseLayout = () => {
 
   if (zoneACount !== 936 || zoneBCount !== 648 || WAREHOUSE_LOCATIONS.length !== 1584) {
     errors.push('Layout invalido: los totales H00 deben ser 936 + 648 = 1584.')
+  }
+
+  if (WAREHOUSE_BAYS.some((bay) => getBayType(bay.id, {}) !== 'standard-3eu')) {
+    errors.push('Layout invalido: todos los vanos deben ser Rack 3 EU por defecto.')
+  }
+
+  const sampleBay = WAREHOUSE_BAYS.find(
+    (bay) => bay.aisle === 8 && bay.side === 'PAR' && bay.startLocation === 38,
+  )
+
+  if (!sampleBay) {
+    errors.push('Layout invalido: falta el vano de validacion P08 PAR U038-U042.')
+  } else {
+    const sampleLocations = WAREHOUSE_LOCATIONS.filter(
+      (location) => location.bayId === sampleBay.id,
+    )
+    const standardSlots = buildRenderableRackSlots(sampleLocations, {})
+    const splitSlots = buildRenderableRackSlots(sampleLocations, {
+      [sampleBay.id]: 'split-6eu',
+    })
+    const lowerIds = splitSlots.filter(({ level }) => level === 0).map(({ id }) => id)
+    const upperIds = splitSlots.filter(({ level }) => level === 1).map(({ id }) => id)
+
+    if (standardSlots.length !== 3 || standardSlots.some(({ level }) => level !== 0)) {
+      errors.push('Layout invalido: un Rack 3 EU debe generar tres ubicaciones nivel 00.')
+    }
+
+    if (
+      splitSlots.length !== 6 ||
+      lowerIds.join(',') !== '08-038-00,08-040-00,08-042-00' ||
+      upperIds.join(',') !== '08-038-01,08-040-01,08-042-01'
+    ) {
+      errors.push('Layout invalido: un Rack 6 EU debe duplicar las tres ubicaciones en nivel 01.')
+    }
   }
 
   errors.forEach((error) => console.error(error))

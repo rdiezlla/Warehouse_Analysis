@@ -1,6 +1,10 @@
 export type RackSide = 'PAR' | 'IMPAR'
 
-export type RackLevel = 0 | 10 | 20 | 30 | 40
+export type RackLevel = 0 | 1 | 10 | 20 | 30 | 40
+
+export type RackBayType = 'standard-3eu' | 'split-6eu'
+
+export type RackBayTypeOverrides = Record<string, RackBayType>
 
 export interface WarehouseZoneConfig {
   id: string
