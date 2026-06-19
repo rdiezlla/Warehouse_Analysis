@@ -15,12 +15,13 @@ import {
   BEAM_HEIGHT,
   getBayType,
   getLocationZ,
-  LOCATION_DEPTH,
   LOCATION_HEIGHT,
   LOCATION_WIDTH,
   POST_HEIGHT,
   POST_WIDTH,
   RACK_DEPTH,
+  RACK_FRAME_POST_OFFSET,
+  SLOT_DEPTH,
   SPLIT_LOCATION_HEIGHT,
   SPLIT_MIDDLE_BEAM_Y,
   WAREHOUSE_AISLE_MARKERS,
@@ -297,7 +298,7 @@ const InstancedLocationLayer = memo(({
         args={[undefined, undefined, locations.length]}
         onClick={handleClick}
       >
-        <boxGeometry args={[LOCATION_DEPTH, height, LOCATION_WIDTH]} />
+        <boxGeometry args={[SLOT_DEPTH, height, LOCATION_WIDTH]} />
         <meshStandardMaterial
           color={emptyLocationColor}
           roughness={0.55}
@@ -315,7 +316,7 @@ const InstancedLocationLayer = memo(({
       >
         <boxGeometry
           args={[
-            LOCATION_DEPTH * 1.002,
+            SLOT_DEPTH * 1.002,
             height * 1.002,
             LOCATION_WIDTH * 1.002,
           ]}
@@ -380,13 +381,11 @@ const InstancedRackWarehouse = memo(({
     const posts: THREE.Matrix4[] = []
     const beams: THREE.Matrix4[] = []
     const postZOffset = BAY_WIDTH / 2 + POST_WIDTH / 2
-    const frontBackXOffset = LOCATION_DEPTH / 2 + POST_WIDTH / 2
     const beamYTop = LOCATION_HEIGHT + 0.34
-    const beamYMid = LOCATION_HEIGHT + 0.08
 
     WAREHOUSE_BAYS.forEach((bay) => {
-      const frontX = bay.x + bay.rackDepthSign * frontBackXOffset
-      const rearX = bay.x - bay.rackDepthSign * frontBackXOffset
+      const frontX = bay.x + bay.rackDepthSign * RACK_FRAME_POST_OFFSET
+      const rearX = bay.x - bay.rackDepthSign * RACK_FRAME_POST_OFFSET
 
       for (const x of [frontX, rearX]) {
         for (const zOffset of [-postZOffset, postZOffset]) {
@@ -399,9 +398,7 @@ const InstancedRackWarehouse = memo(({
           )
         }
 
-        for (const y of [beamYTop, beamYMid]) {
-          beams.push(new THREE.Matrix4().makeTranslation(x, y, bay.z))
-        }
+        beams.push(new THREE.Matrix4().makeTranslation(x, beamYTop, bay.z))
       }
     })
 
@@ -410,15 +407,13 @@ const InstancedRackWarehouse = memo(({
 
   const middleBeamMatrices = useMemo(() => {
     const matrices: THREE.Matrix4[] = []
-    const frontBackXOffset = LOCATION_DEPTH / 2 + POST_WIDTH / 2
-
     WAREHOUSE_BAYS.forEach((bay) => {
       if (getBayType(bay.id, rackBayTypeOverrides) !== 'split-6eu') {
         return
       }
 
-      const frontX = bay.x + bay.rackDepthSign * frontBackXOffset
-      const rearX = bay.x - bay.rackDepthSign * frontBackXOffset
+      const frontX = bay.x + bay.rackDepthSign * RACK_FRAME_POST_OFFSET
+      const rearX = bay.x - bay.rackDepthSign * RACK_FRAME_POST_OFFSET
 
       matrices.push(
         new THREE.Matrix4().makeTranslation(frontX, SPLIT_MIDDLE_BEAM_Y, bay.z),
@@ -503,7 +498,7 @@ const InstancedRackWarehouse = memo(({
           raycast={() => null}
         >
           <boxGeometry
-            args={[LOCATION_DEPTH, selectedLocationHeight, LOCATION_WIDTH]}
+            args={[SLOT_DEPTH, selectedLocationHeight, LOCATION_WIDTH]}
           />
           <meshStandardMaterial
             color={selectedLocationColor}

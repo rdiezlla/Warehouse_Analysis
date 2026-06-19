@@ -6,11 +6,12 @@ import {
   BAY_WIDTH,
   BEAM_DEPTH,
   BEAM_HEIGHT,
-  LOCATION_DEPTH,
   LOCATION_HEIGHT,
   LOCATION_WIDTH,
   POST_HEIGHT,
   POST_WIDTH,
+  RACK_FRAME_POST_OFFSET,
+  SLOT_DEPTH,
 } from '@/features/warehouse3d/layout/warehouseLayout'
 
 type Vec3 = [number, number, number]
@@ -33,9 +34,7 @@ const selectedLocationColor = '#f59e0b'
 const selectedEdgeColor = '#fff7ed'
 
 const postZOffset = BAY_WIDTH / 2 + POST_WIDTH / 2
-const frontBackXOffset = LOCATION_DEPTH / 2 + POST_WIDTH / 2
 const beamYTop = LOCATION_HEIGHT + 0.34
-const beamYMid = LOCATION_HEIGHT + 0.08
 
 export const RackBay3EU = ({
   bayId,
@@ -46,8 +45,8 @@ export const RackBay3EU = ({
   selectedLocationUid,
   onSelectLocation,
 }: RackBay3EUProps) => {
-  const frontX = rackDepthSign * frontBackXOffset
-  const rearX = -rackDepthSign * frontBackXOffset
+  const frontX = rackDepthSign * RACK_FRAME_POST_OFFSET
+  const rearX = -rackDepthSign * RACK_FRAME_POST_OFFSET
   const postPositions: Vec3[] = [
     [frontX, POST_HEIGHT / 2, -postZOffset],
     [frontX, POST_HEIGHT / 2, postZOffset],
@@ -56,9 +55,7 @@ export const RackBay3EU = ({
   ]
   const beamPositions: Vec3[] = [
     [frontX, beamYTop, 0],
-    [frontX, beamYMid, 0],
     [rearX, beamYTop, 0],
-    [rearX, beamYMid, 0],
   ]
 
   const handleLocationClick = (
@@ -109,7 +106,9 @@ export const RackBay3EU = ({
             position={locationPosition}
             onClick={(event) => handleLocationClick(event, location)}
           >
-            <boxGeometry args={[LOCATION_DEPTH, LOCATION_HEIGHT, LOCATION_WIDTH]} />
+            <boxGeometry
+              args={[SLOT_DEPTH, LOCATION_HEIGHT, LOCATION_WIDTH]}
+            />
             <meshStandardMaterial
               color={selected ? selectedLocationColor : emptyLocationColor}
               roughness={0.55}

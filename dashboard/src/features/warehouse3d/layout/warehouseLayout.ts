@@ -30,7 +30,9 @@ export const isLocationExcluded = (location: number) =>
   )
 
 export const LOCATION_WIDTH = 0.85
-export const LOCATION_DEPTH = 0.95
+export const SLOT_DEPTH = 0.52
+export const RACK_FRAME_DEPTH = 0.82
+export const BACK_TO_BACK_GAP = 0.16
 export const LOCATION_HEIGHT = 1.2
 export const LOCATION_GAP = 0.04
 export const BAY_WIDTH = LOCATIONS_PER_BAY * LOCATION_WIDTH + (LOCATIONS_PER_BAY - 1) * LOCATION_GAP
@@ -43,10 +45,12 @@ export const SPLIT_LOCATION_HEIGHT = (LOCATION_HEIGHT - BEAM_HEIGHT) / 2
 export const SPLIT_BOTTOM_LOCATION_Y = SPLIT_LOCATION_HEIGHT / 2
 export const SPLIT_TOP_LOCATION_Y = LOCATION_HEIGHT - SPLIT_LOCATION_HEIGHT / 2
 export const SPLIT_MIDDLE_BEAM_Y = LOCATION_HEIGHT / 2
-export const RACK_DEPTH = LOCATION_DEPTH + POST_WIDTH * 2
+export const RACK_FRAME_POST_OFFSET = RACK_FRAME_DEPTH / 2 - POST_WIDTH / 2
+export const RACK_DEPTH = RACK_FRAME_DEPTH
 export const RACK_VISUAL_HEIGHT = POST_HEIGHT
 export const AISLE_WIDTH = 2.4
-export const AISLE_SPACING = 4.2
+export const AISLE_SPACING =
+  AISLE_WIDTH + 2 * RACK_FRAME_DEPTH + BACK_TO_BACK_GAP
 
 const FIRST_AISLE = 7
 const LAST_AISLE = 26
@@ -482,6 +486,12 @@ export const validateWarehouseLayout = () => {
   const errors: string[] = []
   const p07 = WAREHOUSE_AISLE_MARKERS.find((aisle) => aisle.aisle === 7)
   const p26 = WAREHOUSE_AISLE_MARKERS.find((aisle) => aisle.aisle === 26)
+  const p08Par = WAREHOUSE_FACES.find(
+    (face) => face.aisle === 8 && face.side === 'PAR',
+  )
+  const p09Impar = WAREHOUSE_FACES.find(
+    (face) => face.aisle === 9 && face.side === 'IMPAR',
+  )
   const zoneAFaces = WAREHOUSE_FACES.filter((face) => face.zoneId === 'zone-a')
   const zoneBFaces = WAREHOUSE_FACES.filter((face) => face.zoneId === 'zone-b')
   const hasLocation = (aisle: number, side: RackSide, locationNumber: number) =>
@@ -507,6 +517,31 @@ export const validateWarehouseLayout = () => {
 
   if (!p07 || !p26 || p07.x >= p26.x) {
     errors.push('Layout invalido: P07 debe quedar a la izquierda de P26.')
+  }
+
+  const expectedAisleSpacing =
+    AISLE_WIDTH + 2 * RACK_FRAME_DEPTH + BACK_TO_BACK_GAP
+
+  if (Math.abs(AISLE_SPACING - expectedAisleSpacing) > 0.0001) {
+    errors.push('Layout invalido: el paso X no respeta pasillo, racks y hueco trasero.')
+  }
+
+  const clearFrameDepth = 2 * (RACK_FRAME_POST_OFFSET - POST_WIDTH / 2)
+
+  if (SLOT_DEPTH > clearFrameDepth) {
+    errors.push('Layout invalido: la ubicacion invade los postes frontal o trasero.')
+  }
+
+  if (!p08Par || !p09Impar) {
+    errors.push('Layout invalido: faltan las caras traseras P08 PAR o P09 IMPAR.')
+  } else {
+    const p08RearPostX = p08Par.x - p08Par.rackDepthSign * RACK_FRAME_POST_OFFSET
+    const p09RearPostX = p09Impar.x - p09Impar.rackDepthSign * RACK_FRAME_POST_OFFSET
+    const measuredBackGap = Math.abs(p09RearPostX - p08RearPostX) - POST_WIDTH
+
+    if (Math.abs(measuredBackGap - BACK_TO_BACK_GAP) > 0.0001) {
+      errors.push('Layout invalido: P08 PAR y P09 IMPAR no quedan espalda contra espalda.')
+    }
   }
 
   if (getLocationZ(1) >= getLocationZ(120)) {
